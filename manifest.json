@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "qick-paste",
+  "name": "Qick Paste",
+  "version": "0.2.0",
+  "author": "Pretodev",
+  "description": "A visual clipboard history for the Omarchy bar",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Qick Paste",
+    "description": "Visual clipboard history and quick paste panel",
+    "category": "System",
+    "defaultSection": "right",
+    "allowMultiple": false
+  }
+}
