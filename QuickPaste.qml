@@ -47,7 +47,10 @@ Item {
     rebuildDisplay()
     opened = true
     if (bar && typeof bar.requestPopout === "function") bar.requestPopout(hostWidget || root)
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    Qt.callLater(function() {
+      resultList.positionViewAtBeginning()
+      keyCatcher.forceActiveFocus()
+    })
   }
 
   function close() {
@@ -178,6 +181,19 @@ Item {
     if (displayModel.count === 0) return
     if (selectedIndex < 0) selectIndex(delta < 0 ? displayModel.count - 1 : 0)
     else selectIndex((selectedIndex + delta + displayModel.count) % displayModel.count)
+  }
+
+  function scrollHistory(event) {
+    var pixelX = event.pixelDelta ? event.pixelDelta.x : 0
+    var pixelY = event.pixelDelta ? event.pixelDelta.y : 0
+    var angleX = event.angleDelta ? event.angleDelta.x : 0
+    var angleY = event.angleDelta ? event.angleDelta.y : 0
+    var pixelDelta = pixelY !== 0 ? pixelY : pixelX
+    var angleDelta = angleY !== 0 ? angleY : angleX
+    var delta = pixelDelta !== 0 ? pixelDelta : angleDelta
+    var maximumX = Math.max(0, resultList.contentWidth - resultList.width)
+    resultList.contentX = Math.max(0, Math.min(maximumX, resultList.contentX - delta))
+    event.accepted = true
   }
 
   function activateIndex(index) {
@@ -414,11 +430,7 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
 
             WheelHandler {
-              onWheel: function(event) {
-                var delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
-                resultList.contentX = Math.max(0, Math.min(resultList.contentWidth - resultList.width, resultList.contentX - delta))
-                event.accepted = true
-              }
+              onWheel: function(event) { root.scrollHistory(event) }
             }
 
             delegate: BorderSurface {
@@ -540,6 +552,7 @@ Item {
               MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
+                onWheel: function(event) { root.scrollHistory(event) }
                 onClicked: {
                   if (root.selectedIndex === card.index) root.activateIndex(card.index)
                   else root.selectIndex(card.index)
