@@ -44,6 +44,7 @@ if (( dry_run )); then
     echo "Would install or update runtime files in: $target_dir"
   fi
   echo "Would enable and place $plugin_id in the right section before omarchy.power"
+  echo "Would restart the Omarchy shell with: omarchy restart shell"
   exit 0
 fi
 
@@ -76,5 +77,7 @@ if ! omarchy plugin list --json | jq -e --arg id "$plugin_id" \
   echo "Plugin was copied but is not reported as enabled: $plugin_id" >&2
   exit 1
 fi
+
+omarchy restart shell
 
 echo "$action: $target_dir"

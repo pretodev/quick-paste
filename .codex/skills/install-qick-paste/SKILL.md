@@ -20,9 +20,10 @@ Não apague o histórico em `~/.local/state/omarchy/`. Não edite `/usr/share/om
 1. Na raiz do repositório, execute `make validate`.
 2. Execute `skills/install-qick-paste/scripts/install.sh`.
 3. Confirme que `omarchy plugin list --json` contém `qick-paste` e que o plugin está habilitado.
-4. Informe se foi uma instalação nova, uma atualização local ou uma atualização Git.
+4. Reinicie o shell com `omarchy restart shell`.
+5. Informe se foi uma instalação nova, uma atualização local ou uma atualização Git.
 
-O instalador é idempotente. Ele copia somente os arquivos de runtime, preserva o estado do usuário e posiciona o widget na seção direita antes de `omarchy.power`. Quando o destino é um clone Git, ele usa `omarchy plugin update qick-paste` em vez de sobrescrever o checkout.
+O instalador é idempotente. Ele copia somente os arquivos de runtime, preserva o estado do usuário, posiciona o widget na seção direita antes de `omarchy.power` e reinicia o shell ao final. Quando o destino é um clone Git, ele usa `omarchy plugin update qick-paste` em vez de sobrescrever o checkout.
 
 Para apenas inspecionar o que seria feito, use:
 

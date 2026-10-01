@@ -98,8 +98,11 @@ Item {
 
   function moveSelection(delta) {
     if (displayModel.count === 0) return
-    if (selectedIndex < 0) selectIndex(delta < 0 ? displayModel.count - 1 : 0)
-    else selectIndex((selectedIndex + delta + displayModel.count) % displayModel.count)
+    if (selectedIndex < 0) {
+      selectIndex(0)
+      return
+    }
+    selectIndex(Math.max(0, Math.min(displayModel.count - 1, selectedIndex + delta)))
   }
 
   function scrollHistory(event) {
