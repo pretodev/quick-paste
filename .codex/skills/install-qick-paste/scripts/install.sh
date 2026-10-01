@@ -4,7 +4,7 @@ set -euo pipefail
 
 plugin_id="qick-paste"
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-repo_dir=$(cd -- "$script_dir/../../.." && pwd)
+repo_dir=$(cd -- "$script_dir/../../../.." && pwd)
 plugins_dir="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins"
 target_dir="$plugins_dir/$plugin_id"
 dry_run=0

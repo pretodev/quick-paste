@@ -19,22 +19,15 @@ Item {
   property var legacyHistory: []
   property bool historyLoaded: false
   property bool legacyLoaded: false
-  property bool ownHistoryExists: false
-  property bool initReady: false
   property bool initialized: false
-  property bool captureStarted: false
-  property string suppressKey: ""
   property double clockNow: Date.now()
 
   readonly property int historyLimit: 300
-  readonly property string stateRoot: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy"
-  readonly property string historyPath: stateRoot + "/qick-paste-history.json"
-  readonly property string legacyHistoryPath: stateRoot + "/clipboard-history.json"
-  readonly property string captureScript: localPath("capture.sh")
+  readonly property string stateRoot: Quickshell.env("HOME") + "/.local/state/omarchy"
+  readonly property string historyPath: stateRoot + "/clipboard-history.json"
+  readonly property string legacyHistoryPath: stateRoot + "/qick-paste-history.json"
   readonly property string pasteScript: localPath("paste.sh")
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
-  readonly property bool captureOwner: anchorWindow && Quickshell.screens.length > 0
-    && anchorWindow.screen === Quickshell.screens[0]
 
   function localPath(name) {
     var value = String(Qt.resolvedUrl(name))
@@ -66,89 +59,15 @@ Item {
   }
 
   function maybeInitialize() {
-    if (initialized || !initReady || !historyLoaded || !legacyLoaded) return
+    if (initialized || !historyLoaded || !legacyLoaded) return
     initialized = true
-    history = ownHistoryExists
-      ? loadedHistory
-      : ClipboardHistory.importLegacy([], legacyHistory, historyLimit)
+    history = ClipboardHistory.importLegacy(loadedHistory, legacyHistory, historyLimit)
     rebuildDisplay()
-    if (!ownHistoryExists && history.length > 0 && captureOwner) saveHistory()
-    if (captureOwner) startWatchers()
-  }
-
-  function startWatchers() {
-    if (!currentProc.running) currentProc.running = true
-    if (!textWatchProc.running) textWatchProc.running = true
-    if (!imageWatchProc.running) imageWatchProc.running = true
-  }
-
-  function syncCaptureOwner() {
-    if (captureOwner) {
-      if (captureStarted) return
-      captureStarted = true
-      reapProc.running = true
-    } else {
-      textWatchProc.running = false
-      imageWatchProc.running = false
-      captureStarted = false
-      initReady = true
-      maybeInitialize()
-    }
+    if (history.length !== loadedHistory.length) saveHistory()
   }
 
   function saveHistory() {
     historyFile.setText(JSON.stringify(history.slice(0, historyLimit), null, 2) + "\n")
-  }
-
-  function normalizedAppId(value) {
-    var result = String(value || "").toLowerCase()
-    if (result.slice(-8) === ".desktop") result = result.slice(0, -8)
-    return result
-  }
-
-  function sourceMetadata() {
-    var toplevel = ToplevelManager.activeToplevel
-    var appId = toplevel ? String(toplevel.appId || "") : ""
-    var normalized = normalizedAppId(appId)
-    var values = DesktopEntries.applications.values || []
-    var best = null
-    for (var i = 0; normalized && i < values.length; i++) {
-      var entry = values[i]
-      var entryId = normalizedAppId(entry && entry.id)
-      if (!entryId) continue
-      if (entryId === normalized || entryId.slice(-(normalized.length + 1)) === "." + normalized
-          || normalized.slice(-(entryId.length + 1)) === "." + entryId) {
-        best = entry
-        break
-      }
-    }
-    return {
-      sourceAppId: appId,
-      sourceName: best ? String(best.name || best.id || appId) : appId,
-      sourceIcon: best ? String(best.icon || "") : ""
-    }
-  }
-
-  function addClipboardJson(line) {
-    var entry
-    try { entry = ClipboardHistory.normalizeEntry(JSON.parse(String(line || "").trim())) }
-    catch (error) { entry = null }
-    if (!entry) return
-
-    var key = ClipboardHistory.entryKey(entry)
-    if (suppressKey && key === suppressKey) {
-      suppressKey = ""
-      return
-    }
-
-    var source = sourceMetadata()
-    entry.capturedAt = Date.now()
-    entry.sourceAppId = source.sourceAppId
-    entry.sourceName = source.sourceName
-    entry.sourceIcon = source.sourceIcon
-    history = ClipboardHistory.addEntry(history, entry, historyLimit)
-    saveHistory()
-    rebuildDisplay()
   }
 
   function rebuildDisplay() {
@@ -199,10 +118,19 @@ Item {
   function activateIndex(index) {
     if (index < 0 || index >= displayModel.count) return
     var row = displayModel.get(index)
-    var entry = history[row.historyIndex]
-    suppressKey = ClipboardHistory.entryKey(entry)
     close()
     Quickshell.execDetached([pasteScript, String(row.historyIndex)])
+  }
+
+  function removeIndex(index) {
+    if (index < 0 || index >= displayModel.count) return
+    var row = displayModel.get(index)
+    history = ClipboardHistory.removeEntry(history, row.historyIndex)
+    if (displayModel.count <= 1) selectedIndex = -1
+    else if (selectedIndex >= displayModel.count - 1) selectedIndex = displayModel.count - 2
+    else if (selectedIndex > index) selectedIndex--
+    saveHistory()
+    rebuildDisplay()
   }
 
   function appIconSource(icon) {
@@ -216,12 +144,16 @@ Item {
     return ClipboardHistory.relativeTime(Number(value), clockNow)
   }
 
-  Component.onCompleted: syncCaptureOwner()
-  onCaptureOwnerChanged: syncCaptureOwner()
+  Component.onCompleted: legacyWatcherReaper.running = true
 
   ListModel {
     id: displayModel
     dynamicRoles: true
+  }
+
+  Process {
+    id: legacyWatcherReaper
+    command: ["pkill", "-f", "wl-paste .*--watch .*qick-paste.*/capture\\.sh"]
   }
 
   Timer {
@@ -240,7 +172,6 @@ Item {
     printErrors: false
     onLoaded: {
       root.loadedHistory = ClipboardHistory.parseHistory(text())
-      root.ownHistoryExists = true
       root.historyLoaded = true
       if (root.initialized) {
         root.history = root.loadedHistory
@@ -249,7 +180,6 @@ Item {
     }
     onLoadFailed: {
       root.loadedHistory = []
-      root.ownHistoryExists = false
       root.historyLoaded = true
       root.maybeInitialize()
     }
@@ -268,54 +198,6 @@ Item {
       root.legacyHistory = []
       root.legacyLoaded = true
       root.maybeInitialize()
-    }
-  }
-
-  Process {
-    id: reapProc
-    command: ["pkill", "-f", "wl-paste .*--watch .*qick-paste.*/capture\\.sh"]
-    onExited: initProc.running = true
-  }
-
-  Process {
-    id: initProc
-    command: ["bash", root.captureScript, "--init"]
-    onExited: {
-      root.initReady = true
-      if (root.initialized && root.captureOwner) root.startWatchers()
-      else root.maybeInitialize()
-    }
-  }
-
-  Process {
-    id: currentProc
-    command: ["bash", root.captureScript]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.addClipboardJson(text)
-    }
-  }
-
-  Process {
-    id: textWatchProc
-    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "text", "--watch", root.captureScript, "text"]
-    onExited: if (root.initialized) watchRestartTimer.restart()
-    stdout: SplitParser { onRead: function(data) { root.addClipboardJson(data) } }
-  }
-
-  Process {
-    id: imageWatchProc
-    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "image/png", "--watch", root.captureScript, "image/png"]
-    onExited: if (root.initialized) watchRestartTimer.restart()
-    stdout: SplitParser { onRead: function(data) { root.addClipboardJson(data) } }
-  }
-
-  Timer {
-    id: watchRestartTimer
-    interval: 1000
-    onTriggered: {
-      if (!textWatchProc.running) textWatchProc.running = true
-      if (!imageWatchProc.running) imageWatchProc.running = true
     }
   }
 
@@ -374,6 +256,9 @@ Item {
             event.accepted = true
           } else if (event.key === Qt.Key_Right) {
             root.moveSelection(1)
+            event.accepted = true
+          } else if (event.key === Qt.Key_Delete && root.selectedIndex >= 0) {
+            root.removeIndex(root.selectedIndex)
             event.accepted = true
           } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.selectedIndex >= 0) {
             root.activateIndex(root.selectedIndex)
@@ -456,6 +341,16 @@ Item {
                 : Border.surfaceSpec("menu", "border", Util.alpha(Color.menu.border, 0.45), Math.max(1, Style.normalBorderWidth))
               padding: Style.space(14)
 
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onWheel: function(event) { root.scrollHistory(event) }
+                onClicked: {
+                  if (root.selectedIndex === card.index) root.activateIndex(card.index)
+                  else root.selectIndex(card.index)
+                }
+              }
+
               Column {
                 anchors.fill: parent
                 anchors.topMargin: card.contentTopInset
@@ -479,7 +374,7 @@ Item {
                   }
 
                   Column {
-                    width: parent.width - parent.spacing - Style.space(38)
+                    width: parent.width - deleteButton.width - Style.space(30) - parent.spacing * 2
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Style.space(1)
 
@@ -502,6 +397,17 @@ Item {
                       font.pixelSize: Style.font.caption
                       elide: Text.ElideRight
                     }
+                  }
+
+                  PanelActionButton {
+                    id: deleteButton
+                    anchors.verticalCenter: parent.verticalCenter
+                    iconText: "󰅙"
+                    tooltipText: "Excluir do histórico"
+                    foreground: card.selected ? Color.menu.selectedText : Color.menu.text
+                    hoverColor: Color.urgent
+                    fontFamily: Style.font.menuFamily
+                    onClicked: root.removeIndex(card.index)
                   }
                 }
 
@@ -549,15 +455,6 @@ Item {
                 }
               }
 
-              MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onWheel: function(event) { root.scrollHistory(event) }
-                onClicked: {
-                  if (root.selectedIndex === card.index) root.activateIndex(card.index)
-                  else root.selectIndex(card.index)
-                }
-              }
             }
           }
 

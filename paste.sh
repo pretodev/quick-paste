@@ -3,7 +3,7 @@
 set -euo pipefail
 
 index="${1:-}"
-history_path="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/qick-paste-history.json"
+history_path="$HOME/.local/state/omarchy/clipboard-history.json"
 [[ $index =~ ^[0-9]+$ ]] || exit 1
 [[ -r $history_path ]] || exit 1
 

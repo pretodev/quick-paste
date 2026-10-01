@@ -25,6 +25,12 @@ assert.equal(deduplicated[0].sourceName, "Code")
 const limited = history.addEntry(original, { type: "text", text: "new" }, 2)
 assert.deepEqual(limited.map(entry => entry.text), ["new", "older"])
 
+const removed = history.removeEntry(original, 0)
+assert.deepEqual(removed.map(entry => entry.text), ["same"])
+assert.notEqual(removed, original)
+assert.deepEqual(history.removeEntry(original, -1), original)
+assert.deepEqual(history.removeEntry(original, 99), original)
+
 const imported = history.importLegacy(
   [{ type: "text", text: "owned", sourceName: "Terminal" }],
   [{ type: "text", text: "owned" }, { type: "image", path: "/tmp/a.png" }],

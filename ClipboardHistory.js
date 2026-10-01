@@ -68,6 +68,14 @@ function addEntry(history, candidate, limit) {
   return result
 }
 
+function removeEntry(history, index) {
+  var values = Array.isArray(history) ? history : []
+  var position = Number(index)
+  if (!isFinite(position) || Math.floor(position) !== position
+      || position < 0 || position >= values.length) return values.slice()
+  return values.slice(0, position).concat(values.slice(position + 1))
+}
+
 function importLegacy(history, legacy, limit) {
   var max = Math.max(0, Number(limit) || 0)
   var result = []
@@ -119,6 +127,7 @@ if (typeof module !== "undefined") {
     entryKey: entryKey,
     parseHistory: parseHistory,
     addEntry: addEntry,
+    removeEntry: removeEntry,
     importLegacy: importLegacy,
     characterCount: characterCount,
     relativeTime: relativeTime
