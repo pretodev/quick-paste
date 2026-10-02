@@ -3,6 +3,8 @@
 # Snapshot every representation offered by the current Wayland clipboard.
 set -uo pipefail
 
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy"
 bundle_root="$state_dir/qick-paste-items"
 mkdir -p -- "$bundle_root"
@@ -65,8 +67,18 @@ if [[ -n $plain_path ]]; then
   text_json=$(perl -MEncode=decode,FB_CROAK,LEAVE_SRC -MJSON::PP=encode_json -0777 \
     -e '$raw=<STDIN>; $text=eval{decode("UTF-8",$raw,FB_CROAK|LEAVE_SRC)};
         $text=decode("UTF-8",$raw) unless defined $text; print encode_json($text)' <"$plain_path")
+  link_preview='null'
+  link_url=$(jq -r 'select(test("^https?://[^[:space:]]+$"; "i"))' <<<"$text_json" 2>/dev/null || true)
+  if [[ -n $link_url ]]; then
+    link_preview=$(curl --silent --show-error --location --max-time 5 --connect-timeout 2 \
+      --max-filesize 1048576 --proto '=http,https' --proto-redir '=http,https' \
+      --user-agent 'Qick-Paste/0.4 (+OpenGraph preview)' -- "$link_url" 2>/dev/null \
+      | python3 "$script_dir/link-preview.py" "$link_url" 2>/dev/null || printf 'null')
+  fi
   jq -cn --arg id "$bundle_hash" --argjson text "$text_json" --argjson formats "$formats_json" \
-    '{type:"text",text:$text,mime:"text/plain",bundleId:$id,formats:$formats}'
+    --argjson linkPreview "$link_preview" \
+    '{type:"text",text:$text,mime:"text/plain",bundleId:$id,formats:$formats}
+     | if $linkPreview == null then . else . + {linkPreview:$linkPreview} end'
 elif [[ -n $image_path ]]; then
   jq -cn --arg id "$bundle_hash" --arg mime "$image_mime" --arg path "$image_path" \
     --argjson formats "$formats_json" \

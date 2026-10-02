@@ -21,6 +21,16 @@ esac
 EOF
 chmod +x "$test_root/bin/wl-paste"
 
+cat >"$test_root/bin/curl" <<'EOF'
+#!/bin/bash
+cat <<'HTML'
+<meta property="og:description" content="A rich &amp; useful page">
+<meta content="/preview.png" property="og:image">
+<meta property="og:url" content="https://example.com/canonical">
+HTML
+EOF
+chmod +x "$test_root/bin/curl"
+
 entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
   "$(dirname "$0")/../capture.sh")
 
@@ -33,9 +43,18 @@ for mime in 'text/plain;charset=utf-8' text/html application/x-test; do
 done
 html_path=$(jq -r '.formats[] | select(.mime == "text/html") | .path' <<<"$entry")
 [[ $(<"$html_path") == '<b>Hello rich world</b>' ]]
+[[ $(jq -r '.linkPreview // empty' <<<"$entry") == '' ]]
 
 second=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
   "$(dirname "$0")/../capture.sh")
 [[ $(jq -r '.bundleId' <<<"$entry") == "$(jq -r '.bundleId' <<<"$second")" ]]
+
+sed -i "s/printf 'Hello rich world'/printf 'https:\/\/example.com\/article'/" "$test_root/bin/wl-paste"
+link_entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
+  "$(dirname "$0")/../capture.sh")
+[[ $(jq -r '.text' <<<"$link_entry") == 'https://example.com/article' ]]
+[[ $(jq -r '.linkPreview.description' <<<"$link_entry") == 'A rich & useful page' ]]
+[[ $(jq -r '.linkPreview.image' <<<"$link_entry") == 'https://example.com/preview.png' ]]
+[[ $(jq -r '.linkPreview.url' <<<"$link_entry") == 'https://example.com/canonical' ]]
 
 echo "capture helper tests passed"

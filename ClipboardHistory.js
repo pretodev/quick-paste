@@ -39,6 +39,15 @@ function normalizeEntry(value) {
   var bundleId = stringValue(value.bundleId)
   if (bundleId.length) entry.bundleId = bundleId
 
+  if (entry.type === "text" && value.linkPreview && typeof value.linkPreview === "object") {
+    var description = stringValue(value.linkPreview.description)
+    var image = stringValue(value.linkPreview.image)
+    var url = stringValue(value.linkPreview.url)
+    if (description.length || image.length || url.length) {
+      entry.linkPreview = { description: description, image: image, url: url }
+    }
+  }
+
   var capturedAt = Number(value.capturedAtMs !== undefined ? value.capturedAtMs : value.capturedAt)
   entry.capturedAt = isFinite(capturedAt) && capturedAt > 0 ? capturedAt : 0
   entry.sourceAppId = stringValue(value.sourceAppId)

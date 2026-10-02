@@ -103,6 +103,10 @@ Item {
         entryType: entry.type,
         previewText: entry.type === "text" ? entry.text : "",
         previewImage: entry.type === "image" ? Util.fileUrl(entry.path) : "",
+        isLink: entry.type === "text" && !!entry.linkPreview,
+        linkDescription: entry.linkPreview ? entry.linkPreview.description : "",
+        linkImage: entry.linkPreview ? entry.linkPreview.image : "",
+        linkUrl: entry.linkPreview ? entry.linkPreview.url : "",
         capturedAt: String(entry.capturedAt || 0),
         sourceAppId: entry.sourceAppId || "",
         sourceName: entry.sourceName || "",
@@ -432,6 +436,10 @@ Item {
               required property string entryType
               required property string previewText
               required property string previewImage
+              required property bool isLink
+              required property string linkDescription
+              required property string linkImage
+              required property string linkUrl
               required property string capturedAt
               required property string sourceAppId
               required property string sourceName
@@ -505,7 +513,8 @@ Item {
 
                     Text {
                       width: parent.width
-                      text: (card.entryType === "image" ? "Imagem" : "Texto") + " · " + root.ageText(card.capturedAt)
+                      text: (card.entryType === "image" ? "Imagem" : (card.isLink ? "Link" : "Texto"))
+                        + " · " + root.ageText(card.capturedAt)
                       color: card.selected ? Color.menu.selectedText : Color.menu.text
                       opacity: 0.58
                       font.family: Style.font.menuFamily
@@ -532,7 +541,7 @@ Item {
                   clip: true
 
                   Text {
-                    visible: card.entryType === "text"
+                    visible: card.entryType === "text" && !card.isLink
                     anchors.fill: parent
                     textFormat: Text.PlainText
                     text: card.previewText
@@ -553,6 +562,35 @@ Item {
                     asynchronous: true
                     smooth: true
                   }
+
+                  Column {
+                    visible: card.isLink
+                    anchors.fill: parent
+                    spacing: Style.space(8)
+
+                    Image {
+                      width: parent.width
+                      height: card.linkImage ? Math.max(0, parent.height - linkDescriptionText.implicitHeight - parent.spacing) : 0
+                      visible: height > 0
+                      source: card.linkImage
+                      fillMode: Image.PreserveAspectCrop
+                      asynchronous: true
+                      smooth: true
+                    }
+
+                    Text {
+                      id: linkDescriptionText
+                      width: parent.width
+                      text: card.linkDescription || card.previewText
+                      textFormat: Text.PlainText
+                      color: card.selected ? Color.menu.selectedText : Color.menu.text
+                      font.family: Style.font.menuFamily
+                      font.pixelSize: Style.font.body
+                      wrapMode: Text.Wrap
+                      elide: Text.ElideRight
+                      maximumLineCount: card.linkImage ? 2 : Math.max(1, Math.floor(parent.height / (font.pixelSize * 1.25)))
+                    }
+                  }
                 }
 
                 Text {
@@ -560,7 +598,8 @@ Item {
                   width: parent.width
                   text: card.entryType === "image"
                     ? (preview.sourceSize.width > 0 ? preview.sourceSize.width + " × " + preview.sourceSize.height + " px" : "Imagem")
-                    : card.characterCount + (card.characterCount === 1 ? " caractere" : " caracteres")
+                    : (card.isLink ? (card.linkUrl || card.previewText)
+                      : card.characterCount + (card.characterCount === 1 ? " caractere" : " caracteres"))
                   color: card.selected ? Color.menu.selectedText : Color.menu.text
                   opacity: 0.55
                   font.family: Style.font.menuFamily

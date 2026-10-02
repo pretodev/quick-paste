@@ -25,6 +25,24 @@ assert.deepEqual(rich.formats, [
 ])
 assert.equal(history.entryKey(rich), "bundle:abc")
 
+const link = history.normalizeEntry({
+  type: "text",
+  text: "https://example.com/original",
+  linkPreview: {
+    description: "An example",
+    image: "https://example.com/card.png",
+    url: "https://example.com/canonical"
+  }
+})
+assert.deepEqual(link.linkPreview, {
+  description: "An example",
+  image: "https://example.com/card.png",
+  url: "https://example.com/canonical"
+})
+assert.equal(history.normalizeEntry({
+  type: "text", text: "https://example.com", linkPreview: {}
+}).linkPreview, undefined)
+
 const original = [
   { type: "text", text: "older", capturedAt: 1 },
   { type: "text", text: "same", capturedAt: 2 }

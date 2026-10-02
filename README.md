@@ -4,6 +4,11 @@ A visual clipboard history for the Omarchy 4.x bar, inspired by macOS Paste.
 It opens as a full-width bottom panel with horizontally scrollable cards for
 text and images.
 
+Copied HTTP(S) links get an Open Graph preview when the destination provides
+`og:description`, `og:image`, or `og:url`. Preview retrieval is best effort,
+with short timeouts and a one-megabyte response limit; the original URL remains
+the clipboard item and is always what gets pasted.
+
 Each new item records its source application, relative age, and either its
 Unicode character count or image dimensions. Existing Omarchy clipboard
 history is imported on first run; metadata unavailable in those older entries
@@ -12,7 +17,7 @@ is shown as unknown.
 ## Requirements
 
 - Omarchy 4.x with the Quickshell-based shell
-- `wl-clipboard`, `wtype`, `jq`, `perl`, and `setpriv` (included by Omarchy)
+- `wl-clipboard`, `wtype`, `jq`, `perl`, `python`, `curl`, and `setpriv` (included by Omarchy)
 - Build tools used by the installer: `make`, `gcc`, `pkg-config`,
   `wayland-scanner`, Wayland client headers, and the wlr-data-control protocol
 
@@ -30,7 +35,7 @@ button in the right bar section before the power widget:
 ```bash
 mkdir -p ~/.config/omarchy/plugins/qick-paste
 make
-cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh paste.sh manifest.json \
+cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh link-preview.py paste.sh manifest.json \
   ~/.config/omarchy/plugins/qick-paste/
 cp -a build/qick-paste-clipboard-provider ~/.config/omarchy/plugins/qick-paste/
 omarchy-shell shell rescanPlugins
