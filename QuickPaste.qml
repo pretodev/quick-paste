@@ -535,15 +535,20 @@ Item {
           }
         }
 
-        TextField {
-          id: searchField
+        Item {
           width: parent.width
-          placeholderText: "Buscar no histórico"
-          foreground: Color.menu.text
-          accent: Color.accent
-          onTextChanged: root.updateSearch()
-          Keys.priority: Keys.BeforeItem
-          Keys.onPressed: function(event) { root.handlePanelKey(event) }
+          height: searchField.implicitHeight + Style.space(8)
+
+          TextField {
+            id: searchField
+            width: parent.width
+            placeholderText: "Buscar no histórico"
+            foreground: Color.menu.text
+            accent: Color.accent
+            onTextChanged: root.updateSearch()
+            Keys.priority: Keys.BeforeItem
+            Keys.onPressed: function(event) { root.handlePanelKey(event) }
+          }
         }
 
         Item {
