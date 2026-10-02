@@ -158,11 +158,8 @@ Item {
     contextMenuIndex = index
     contextMenuOpen = true
     var point = card.mapToItem(menuLayer, mouseX, mouseY)
-    var margin = Style.space(8)
-    contextMenuX = Math.max(margin,
-      Math.min(point.x, menuLayer.width - contextSurface.width - margin))
-    contextMenuY = Math.max(margin,
-      Math.min(point.y, menuLayer.height - contextSurface.height - margin))
+    contextMenuX = point.x
+    contextMenuY = point.y
     Qt.callLater(function() { contextKeyCatcher.forceActiveFocus() })
   }
 
@@ -796,8 +793,11 @@ Item {
 
             BorderSurface {
               id: contextSurface
-              x: root.contextMenuX
-              y: root.contextMenuY
+              readonly property real edgeMargin: Style.space(8)
+              x: Math.max(edgeMargin,
+                Math.min(root.contextMenuX, menuLayer.width - width - edgeMargin))
+              y: Math.max(edgeMargin,
+                Math.min(root.contextMenuY, menuLayer.height - height - edgeMargin))
               width: Math.min(Style.space(360), menuLayer.width - Style.space(16))
               height: menuColumn.implicitHeight + contentTopInset + contentBottomInset
               padding: Style.space(6)
