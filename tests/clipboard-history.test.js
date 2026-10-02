@@ -80,6 +80,16 @@ assert.notEqual(removed, original)
 assert.deepEqual(history.removeEntry(original, -1), original)
 assert.deepEqual(history.removeEntry(original, 99), original)
 
+assert.equal(history.matchesSearch({ type: "text", text: "Olá Mundo\nsegunda linha" }, "MUNDO"), true)
+assert.equal(history.matchesSearch({ type: "text", text: "Olá Mundo" }, "ausente"), false)
+assert.equal(history.matchesSearch(link, "CANONICAL"), true)
+assert.equal(history.matchesSearch(link, "an EXAMPLE"), true)
+assert.equal(history.matchesSearch(files, "OLÁ MUNDO.TXT"), true)
+assert.equal(history.matchesSearch(files, "/home/user"), false)
+assert.equal(history.matchesSearch({ type: "image", path: "/tmp/photo.png" }, "photo"), false)
+assert.equal(history.matchesSearch({ type: "image", path: "/tmp/photo.png" }, " "), true)
+assert.equal(history.matchesSearch(null, "test"), false)
+
 const imported = history.importLegacy(
   [{ type: "text", text: "owned", sourceName: "Terminal" }],
   [{ type: "text", text: "owned" }, { type: "image", path: "/tmp/a.png" }],

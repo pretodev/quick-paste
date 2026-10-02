@@ -46,6 +46,7 @@ Item {
 
   function open(payloadJson) {
     pasteTarget = ToplevelManager.activeToplevel
+    searchField.text = ""
     selectedIndex = -1
     rebuildDisplay()
     opened = true
@@ -105,7 +106,7 @@ Item {
     displayModel.clear()
     for (var i = 0; i < history.length; i++) {
       var entry = ClipboardHistory.normalizeEntry(history[i])
-      if (!entry) continue
+      if (!entry || !ClipboardHistory.matchesSearch(entry, searchField.text)) continue
       var linkTarget = entry.type === "text" ? ClipboardHistory.webUrl(entry.text) : ""
       if (!linkTarget && entry.linkPreview)
         linkTarget = ClipboardHistory.webUrl(entry.linkPreview.url)
@@ -146,6 +147,13 @@ Item {
     if (selectedIndex >= displayModel.count) selectedIndex = -1
   }
 
+  function updateSearch() {
+    selectedIndex = -1
+    rebuildDisplay()
+    if (searchField.text.trim().length && displayModel.count > 0) selectIndex(0)
+    resetInitialPosition()
+  }
+
   function selectIndex(index) {
     if (index < 0 || index >= displayModel.count) return
     selectedIndex = index
@@ -166,7 +174,39 @@ Item {
   function closeContextMenu() {
     contextMenuOpen = false
     contextMenuIndex = -1
-    if (opened) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    if (opened) Qt.callLater(function() { searchField.forceActiveFocus() })
+  }
+
+  function handlePanelKey(event) {
+    if (event.key === Qt.Key_Escape) {
+      close()
+      event.accepted = true
+    } else if (event.key === Qt.Key_Left && event.modifiers === Qt.NoModifier) {
+      moveSelection(-1)
+      event.accepted = true
+    } else if (event.key === Qt.Key_Right && event.modifiers === Qt.NoModifier) {
+      moveSelection(1)
+      event.accepted = true
+    } else if (event.key === Qt.Key_Delete && selectedIndex >= 0
+               && (!searchField.activeFocus || !searchField.text.length)) {
+      removeIndex(selectedIndex)
+      event.accepted = true
+    } else if (handleFileShortcut(selectedIndex, event)) {
+      event.accepted = true
+    } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+               && (event.modifiers & Qt.ControlModifier)
+               && selectedIndex >= 0
+               && !!displayModel.get(selectedIndex).linkTarget) {
+      openLink(selectedIndex)
+      event.accepted = true
+    } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && selectedIndex >= 0) {
+      var row = displayModel.get(selectedIndex)
+      if ((event.modifiers & Qt.ShiftModifier) && row.entryType === "text")
+        pastePlainText(selectedIndex)
+      else
+        activateIndex(selectedIndex)
+      event.accepted = true
+    }
   }
 
   function moveSelection(delta) {
@@ -360,7 +400,7 @@ Item {
       root.resetInitialPosition()
       Qt.callLater(function() {
         root.resetInitialPosition()
-        if (root.opened) keyCatcher.forceActiveFocus()
+        if (root.opened) searchField.forceActiveFocus()
       })
     }
   }
@@ -452,32 +492,11 @@ Item {
 
         Keys.priority: Keys.BeforeItem
         Keys.onPressed: function(event) {
-          if (event.key === Qt.Key_Escape) {
-            root.close()
-            event.accepted = true
-          } else if (event.key === Qt.Key_Left) {
-            root.moveSelection(-1)
-            event.accepted = true
-          } else if (event.key === Qt.Key_Right) {
-            root.moveSelection(1)
-            event.accepted = true
-          } else if (event.key === Qt.Key_Delete && root.selectedIndex >= 0) {
-            root.removeIndex(root.selectedIndex)
-            event.accepted = true
-          } else if (root.handleFileShortcut(root.selectedIndex, event)) {
-            event.accepted = true
-          } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
-                     && (event.modifiers & Qt.ControlModifier)
-                     && root.selectedIndex >= 0
-                     && !!displayModel.get(root.selectedIndex).linkTarget) {
-            root.openLink(root.selectedIndex)
-            event.accepted = true
-          } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.selectedIndex >= 0) {
-            var row = displayModel.get(root.selectedIndex)
-            if ((event.modifiers & Qt.ShiftModifier) && row.entryType === "text")
-              root.pastePlainText(root.selectedIndex)
-            else
-              root.activateIndex(root.selectedIndex)
+          root.handlePanelKey(event)
+          if (!event.accepted && event.text.length
+              && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+            searchField.text += event.text
+            searchField.forceActiveFocus()
             event.accepted = true
           }
         }
@@ -514,6 +533,17 @@ Item {
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.caption
           }
+        }
+
+        TextField {
+          id: searchField
+          width: parent.width
+          placeholderText: "Buscar no histórico"
+          foreground: Color.menu.text
+          accent: Color.accent
+          onTextChanged: root.updateSearch()
+          Keys.priority: Keys.BeforeItem
+          Keys.onPressed: function(event) { root.handlePanelKey(event) }
         }
 
         Item {
@@ -766,7 +796,9 @@ Item {
             }
 
             Text {
-              text: "A área de transferência está vazia"
+              text: searchField.text.trim().length
+                ? "Nenhum resultado encontrado"
+                : "A área de transferência está vazia"
               color: Color.menu.text
               opacity: 0.65
               font.family: Style.font.menuFamily

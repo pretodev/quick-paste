@@ -128,6 +128,29 @@ function removeEntry(history, index) {
   return values.slice(0, position).concat(values.slice(position + 1))
 }
 
+function matchesSearch(value, query) {
+  var needle = stringValue(query).trim().toLowerCase()
+  if (!needle.length) return true
+  var entry = normalizeEntry(value)
+  if (!entry) return false
+  var fields = []
+  if (entry.type === "text") {
+    fields.push(entry.text)
+    if (entry.linkPreview) {
+      fields.push(entry.linkPreview.url, entry.linkPreview.description)
+    }
+  } else if (entry.type === "file") {
+    for (var i = 0; i < entry.paths.length; i++) {
+      var segments = entry.paths[i].split("/")
+      fields.push(segments[segments.length - 1] || segments[segments.length - 2] || "/")
+    }
+  }
+  for (var f = 0; f < fields.length; f++) {
+    if (stringValue(fields[f]).toLowerCase().indexOf(needle) !== -1) return true
+  }
+  return false
+}
+
 function importLegacy(history, legacy, limit) {
   var max = Math.max(0, Number(limit) || 0)
   var result = []
@@ -180,6 +203,7 @@ if (typeof module !== "undefined") {
     parseHistory: parseHistory,
     addEntry: addEntry,
     removeEntry: removeEntry,
+    matchesSearch: matchesSearch,
     importLegacy: importLegacy,
     webUrl: webUrl,
     characterCount: characterCount,

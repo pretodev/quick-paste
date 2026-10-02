@@ -57,6 +57,9 @@ omarchy bar move qick-paste --section right --before omarchy.power
 ## Usage
 
 - Click the bar icon to open or close the panel.
+- Type to search copied text, links, and file names, or click the search field.
+  Results update as you type, and Enter pastes the first match. Escape closes
+  the panel and clears the search for the next opening.
 - Click a card once to select it; click it again to paste and close.
 - Use Left/Right to select, Enter to paste with every original MIME type,
   Shift+Enter to paste only `text/plain`, and Escape to close.
