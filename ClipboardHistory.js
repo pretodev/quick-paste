@@ -36,6 +36,15 @@ function normalizeEntry(value) {
       path: path,
       mime: stringValue(value.mime || "image/png")
     }
+  } else if (type === "file") {
+    if (!Array.isArray(value.paths) || !value.paths.length) return null
+    var paths = []
+    for (var p = 0; p < value.paths.length; p++) {
+      var filePath = stringValue(value.paths[p])
+      if (!filePath.length || filePath.charAt(0) !== "/" || filePath.indexOf("\u0000") !== -1) return null
+      paths.push(filePath)
+    }
+    entry = { type: "file", paths: paths, mime: "text/uri-list" }
   } else {
     return null
   }
@@ -76,7 +85,9 @@ function entryKey(entry) {
   var value = normalizeEntry(entry)
   if (!value) return ""
   if (value.bundleId) return "bundle:" + value.bundleId
-  return value.type === "image" ? "image:" + value.path : "text:" + value.text
+  if (value.type === "image") return "image:" + value.path
+  if (value.type === "file") return "file:" + JSON.stringify(value.paths)
+  return "text:" + value.text
 }
 
 function parseHistory(raw) {

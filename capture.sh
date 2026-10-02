@@ -19,6 +19,9 @@ formats_json='[]'
 plain_path=""
 image_path=""
 image_mime=""
+uri_path=""
+uri_mime=""
+fallback_uri_path=""
 
 while IFS= read -r mime; do
   [[ -n $mime ]] || continue
@@ -36,10 +39,21 @@ while IFS= read -r mime; do
     text/plain) [[ -n $plain_path ]] || plain_path="$payload" ;;
     UTF8_STRING|STRING|TEXT) [[ -n $plain_path ]] || plain_path="$payload" ;;
   esac
+  case "$mime" in
+    x-special/gnome-copied-files) uri_path="$payload"; uri_mime="$mime" ;;
+    text/uri-list) fallback_uri_path="$payload"; if [[ -z $uri_path ]]; then uri_path="$payload"; uri_mime="$mime"; fi ;;
+  esac
   if [[ -z $image_path && $mime == image/* ]]; then image_path="$payload"; image_mime="$mime"; fi
 done <<<"$types"
 
 [[ $formats_json != '[]' ]] || exit 0
+file_paths='[]'
+if [[ -n $uri_path ]]; then
+  file_paths=$(python3 "$script_dir/file-uris.py" "$uri_path" "$uri_mime" 2>/dev/null || printf '[]')
+fi
+if [[ $file_paths == '[]' && -n $fallback_uri_path ]]; then
+  file_paths=$(python3 "$script_dir/file-uris.py" "$fallback_uri_path" text/uri-list 2>/dev/null || printf '[]')
+fi
 if [[ -z $plain_path ]] && grep -qE '^(text/|UTF8_STRING$|STRING$|TEXT$)' <<<"$types"; then
   payload="$tmp_dir/plain-fallback"
   if timeout 5s wl-paste --type text --no-newline >"$payload" 2>/dev/null; then
@@ -48,6 +62,8 @@ if [[ -z $plain_path ]] && grep -qE '^(text/|UTF8_STRING$|STRING$|TEXT$)' <<<"$t
       '$formats + [{mime:"text/plain",path:$path}]')
   fi
 fi
+
+if [[ $file_paths == '[]' && -z $plain_path && -z $image_path ]]; then exit 0; fi
 
 bundle_hash=$(while IFS= read -r mime && IFS= read -r path; do
   printf '%s\0' "$mime"
@@ -63,7 +79,10 @@ formats_json=$(jq -cn --argjson formats "$formats_json" --arg old "$tmp_dir/" \
 [[ -z $plain_path ]] || plain_path=${plain_path/#$tmp_dir\//$bundle_dir/}
 [[ -z $image_path ]] || image_path=${image_path/#$tmp_dir\//$bundle_dir/}
 
-if [[ -n $plain_path ]]; then
+if [[ $file_paths != '[]' ]]; then
+  jq -cn --arg id "$bundle_hash" --argjson paths "$file_paths" --argjson formats "$formats_json" \
+    '{type:"file",paths:$paths,mime:"text/uri-list",bundleId:$id,formats:$formats}'
+elif [[ -n $plain_path ]]; then
   text_json=$(perl -MEncode=decode,FB_CROAK,LEAVE_SRC -MJSON::PP=encode_json -0777 \
     -e '$raw=<STDIN>; $text=eval{decode("UTF-8",$raw,FB_CROAK|LEAVE_SRC)};
         $text=decode("UTF-8",$raw) unless defined $text; print encode_json($text)' <"$plain_path")

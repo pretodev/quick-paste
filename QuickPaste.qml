@@ -28,11 +28,12 @@ Item {
   property real contextMenuY: 0
 
   readonly property int historyLimit: 300
-  readonly property string stateRoot: Quickshell.env("HOME") + "/.local/state/omarchy"
+  readonly property string stateRoot: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/omarchy"
   readonly property string historyPath: stateRoot + "/qick-paste-history.json"
   readonly property string legacyHistoryPath: stateRoot + "/clipboard-history.json"
   readonly property string captureScript: localPath("capture.sh")
   readonly property string pasteScript: localPath("paste.sh")
+  readonly property string fileActionScript: localPath("file-action.sh")
   readonly property string editScript: localPath("edit-in-tensaku.sh")
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property string pasteTargetName: appName(pasteTarget)
@@ -108,10 +109,27 @@ Item {
       var linkTarget = entry.type === "text" ? ClipboardHistory.webUrl(entry.text) : ""
       if (!linkTarget && entry.linkPreview)
         linkTarget = ClipboardHistory.webUrl(entry.linkPreview.url)
+      var fileTitle = ""
+      var homePaths = true
+      if (entry.type === "file") {
+        var fileNames = []
+        var home = Quickshell.env("HOME")
+        for (var p = 0; p < entry.paths.length; p++) {
+          var path = entry.paths[p]
+          var segments = path.split("/")
+          fileNames.push(segments[segments.length - 1] || segments[segments.length - 2] || "/")
+          if (path !== home && path.indexOf(home + "/") !== 0) homePaths = false
+        }
+        fileTitle = fileNames.length === 1 ? fileNames[0]
+          : fileNames[0] + " e mais " + (fileNames.length - 1)
+      }
       displayModel.append({
         entryType: entry.type,
         previewText: entry.type === "text" ? entry.text : "",
         previewImage: entry.type === "image" ? Util.fileUrl(entry.path) : "",
+        fileTitle: fileTitle,
+        fileCount: entry.type === "file" ? entry.paths.length : 0,
+        homePaths: homePaths,
         isLink: entry.type === "text" && (!!entry.linkPreview || !!linkTarget),
         linkTarget: linkTarget,
         linkDescription: entry.linkPreview ? entry.linkPreview.description : "",
@@ -190,6 +208,50 @@ Item {
     activateIndex(index, true)
   }
 
+  function pasteFilePath(index, relativeHome) {
+    if (!pasteTarget || index < 0 || index >= displayModel.count) return
+    var row = displayModel.get(index)
+    if (row.entryType !== "file" || (relativeHome && !row.homePaths)) return
+    close()
+    Quickshell.execDetached([pasteScript, String(row.historyIndex),
+      relativeHome ? "--path-home" : "--path-absolute"])
+  }
+
+  function fileAction(index, mode) {
+    if (index < 0 || index >= displayModel.count) return
+    var row = displayModel.get(index)
+    if (row.entryType !== "file") return
+    close()
+    Quickshell.execDetached([fileActionScript, String(row.historyIndex), mode])
+  }
+
+  function handleFileShortcut(index, event) {
+    if (index < 0 || index >= displayModel.count) return false
+    var row = displayModel.get(index)
+    if (row.entryType !== "file") return false
+    if (event.key === Qt.Key_O && event.modifiers === Qt.ControlModifier) {
+      fileAction(index, "open")
+      return true
+    }
+    if (event.key === Qt.Key_O
+        && event.modifiers === (Qt.ControlModifier | Qt.ShiftModifier)) {
+      fileAction(index, "reveal")
+      return true
+    }
+    if (!pasteTarget) return false
+    if (event.key === Qt.Key_P && event.modifiers === Qt.ControlModifier) {
+      pasteFilePath(index, false)
+      return true
+    }
+    if (event.key === Qt.Key_P
+        && event.modifiers === (Qt.ControlModifier | Qt.ShiftModifier)
+        && row.homePaths) {
+      pasteFilePath(index, true)
+      return true
+    }
+    return false
+  }
+
   function openLink(index) {
     if (index < 0 || index >= displayModel.count) return
     var row = displayModel.get(index)
@@ -265,19 +327,11 @@ Item {
   }
 
   Process {
-    id: textWatch
-    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "text", "--watch", root.captureScript]
+    id: clipboardWatch
+    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--watch", root.captureScript]
     running: true
     stdout: SplitParser { onRead: function(data) { root.addCapturedJson(data) } }
-    onExited: textWatchRestart.restart()
-  }
-
-  Process {
-    id: imageWatch
-    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "image", "--watch", root.captureScript]
-    running: true
-    stdout: SplitParser { onRead: function(data) { root.addCapturedJson(data) } }
-    onExited: imageWatchRestart.restart()
+    onExited: clipboardWatchRestart.restart()
   }
 
   Process {
@@ -289,15 +343,9 @@ Item {
   }
 
   Timer {
-    id: textWatchRestart
+    id: clipboardWatchRestart
     interval: 1000
-    onTriggered: if (!textWatch.running) textWatch.running = true
-  }
-
-  Timer {
-    id: imageWatchRestart
-    interval: 1000
-    onTriggered: if (!imageWatch.running) imageWatch.running = true
+    onTriggered: if (!clipboardWatch.running) clipboardWatch.running = true
   }
 
   Timer {
@@ -419,6 +467,8 @@ Item {
           } else if (event.key === Qt.Key_Delete && root.selectedIndex >= 0) {
             root.removeIndex(root.selectedIndex)
             event.accepted = true
+          } else if (root.handleFileShortcut(root.selectedIndex, event)) {
+            event.accepted = true
           } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                      && (event.modifiers & Qt.ControlModifier)
                      && root.selectedIndex >= 0
@@ -493,6 +543,9 @@ Item {
               required property string entryType
               required property string previewText
               required property string previewImage
+              required property string fileTitle
+              required property int fileCount
+              required property bool homePaths
               required property bool isLink
               required property string linkTarget
               required property string linkDescription
@@ -571,7 +624,8 @@ Item {
 
                     Text {
                       width: parent.width
-                      text: (card.entryType === "image" ? "Imagem" : (card.isLink ? "Link" : "Texto"))
+                      text: (card.entryType === "file" ? (card.fileCount === 1 ? "Arquivo" : "Arquivos")
+                        : card.entryType === "image" ? "Imagem" : (card.isLink ? "Link" : "Texto"))
                         + " · " + root.ageText(card.capturedAt)
                       color: card.selected ? Color.menu.selectedText : Color.menu.text
                       opacity: 0.58
@@ -609,6 +663,33 @@ Item {
                     wrapMode: Text.WrapAnywhere
                     elide: Text.ElideRight
                     maximumLineCount: Math.max(1, Math.floor(height / (font.pixelSize * 1.25)))
+                  }
+
+                  Column {
+                    visible: card.entryType === "file"
+                    anchors.centerIn: parent
+                    width: parent.width
+                    spacing: Style.space(12)
+
+                    Text {
+                      width: parent.width
+                      text: card.fileCount === 1 ? "󰈔" : "󰉓"
+                      color: card.selected ? Color.menu.selectedText : Color.menu.text
+                      font.family: Style.font.menuFamily
+                      font.pixelSize: Style.font.displayLarge
+                      horizontalAlignment: Text.AlignHCenter
+                    }
+
+                    Text {
+                      width: parent.width
+                      text: card.fileTitle
+                      textFormat: Text.PlainText
+                      color: card.selected ? Color.menu.selectedText : Color.menu.text
+                      font.family: Style.font.menuFamily
+                      font.pixelSize: Style.font.title
+                      horizontalAlignment: Text.AlignHCenter
+                      elide: Text.ElideMiddle
+                    }
                   }
 
                   Image {
@@ -654,7 +735,9 @@ Item {
                 Text {
                   id: footer
                   width: parent.width
-                  text: card.entryType === "image"
+                  text: card.entryType === "file"
+                    ? (card.fileCount === 1 ? "1 arquivo ou pasta" : card.fileCount + " arquivos ou pastas")
+                    : card.entryType === "image"
                     ? (preview.sourceSize.width > 0 ? preview.sourceSize.width + " × " + preview.sourceSize.height + " px" : "Imagem")
                     : (card.isLink ? (card.linkUrl || card.previewText)
                       : card.characterCount + (card.characterCount === 1 ? " caractere" : " caracteres"))
@@ -738,6 +821,8 @@ Item {
                   if (event.key === Qt.Key_Escape) {
                     root.closeContextMenu()
                     event.accepted = true
+                  } else if (root.handleFileShortcut(root.contextMenuIndex, event)) {
+                    event.accepted = true
                   } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                              && (event.modifiers & Qt.ControlModifier)
                              && root.contextMenuIndex >= 0
@@ -777,6 +862,51 @@ Item {
 
                 PasteMenuItem {
                   width: parent.width
+                  iconText: "󰈔"
+                  label: root.contextMenuIndex >= 0 && displayModel.get(root.contextMenuIndex).fileCount === 1
+                    ? "Abrir arquivo" : "Abrir arquivos"
+                  keymap: "Ctrl + O"
+                  visible: root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).entryType === "file"
+                  onChosen: root.fileAction(root.contextMenuIndex, "open")
+                }
+
+                PasteMenuItem {
+                  width: parent.width
+                  iconText: "󰝰"
+                  label: root.contextMenuIndex >= 0 && displayModel.get(root.contextMenuIndex).fileCount === 1
+                    ? "Abrir local do arquivo" : "Abrir local dos arquivos"
+                  keymap: "Ctrl + Shift + O"
+                  visible: root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).entryType === "file"
+                  onChosen: root.fileAction(root.contextMenuIndex, "reveal")
+                }
+
+                PasteMenuItem {
+                  width: parent.width
+                  iconText: "󰌷"
+                  label: "Colar caminho absoluto"
+                  keymap: "Ctrl + P"
+                  visible: root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).entryType === "file"
+                  enabled: root.pasteTarget !== null
+                  onChosen: root.pasteFilePath(root.contextMenuIndex, false)
+                }
+
+                PasteMenuItem {
+                  width: parent.width
+                  iconText: "󰉋"
+                  label: "Colar caminho com ~/"
+                  keymap: "Ctrl + Shift + P"
+                  visible: root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).entryType === "file"
+                  enabled: root.pasteTarget !== null && root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).homePaths
+                  onChosen: root.pasteFilePath(root.contextMenuIndex, true)
+                }
+
+                PasteMenuItem {
+                  width: parent.width
                   iconText: "󰏫"
                   label: tensakuEdit.running ? "Tensaku já está aberto" : "Abrir no Tensaku"
                   visible: root.contextMenuIndex >= 0
@@ -790,6 +920,8 @@ Item {
                   iconText: "󰆒"
                   label: "Colar em " + (root.pasteTargetName || "nenhum aplicativo")
                   keymap: "Enter"
+                  visible: root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).entryType !== "file"
                   enabled: root.pasteTarget !== null
                   onChosen: root.activateIndex(root.contextMenuIndex)
                 }
@@ -799,6 +931,8 @@ Item {
                   iconText: "󰉿"
                   label: "Colar sem formatação"
                   keymap: "Shift + Enter"
+                  visible: root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).entryType === "text"
                   enabled: root.pasteTarget !== null
                     && root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "text"

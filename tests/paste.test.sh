@@ -14,9 +14,14 @@ printf '%s' $'Olá\n  mundo' >"$test_root/expected.txt"
 printf '%s' 'Olá rico' >"$test_root/plain.txt"
 printf '%s' '<b>Olá rico</b>' >"$test_root/html.txt"
 jq -cn --arg plain "$test_root/plain.txt" --arg html "$test_root/html.txt" \
+  --arg uri "$test_root/uris.txt" --arg home "$HOME" \
   '[{type:"text",text:"Olá\n  mundo"},{type:"image",path:"/missing.png"},
-    {type:"text",text:"Olá rico",formats:[{mime:"text/plain",path:$plain},{mime:"text/html",path:$html}]}]' \
+    {type:"text",text:"Olá rico",formats:[{mime:"text/plain",path:$plain},{mime:"text/html",path:$html}]},
+    {type:"file",paths:[$home + "/Olá mundo.txt",$home + "/Documents/other.pdf"],
+      formats:[{mime:"text/uri-list",path:$uri}]},
+    {type:"file",paths:["/tmp/outside.txt"],formats:[{mime:"text/uri-list",path:$uri}]}]' \
   >"$test_root/state/omarchy/qick-paste-history.json"
+printf 'file:///tmp/example\n' >"$test_root/uris.txt"
 
 printf '%s\n' '#!/bin/bash' \
   'printf "%s" "$*" >"$QICK_PASTE_TEST_ROOT/wl-copy.args"' \
@@ -60,5 +65,24 @@ mapfile -t provider_args <"$test_root/provider.args"
 [[ ${provider_args[1]} == "$test_root/plain.txt" ]]
 [[ ${provider_args[2]} == text/html ]]
 [[ ${provider_args[3]} == "$test_root/html.txt" ]]
+
+run_paste 3
+mapfile -t provider_args <"$test_root/provider.args"
+[[ ${provider_args[0]} == text/uri-list ]]
+[[ ${provider_args[1]} == "$test_root/uris.txt" ]]
+
+run_paste 3 --path-absolute
+printf '%s\n' "$HOME/Olá mundo.txt" "$HOME/Documents/other.pdf" >"$test_root/expected-paths.txt"
+cmp "$test_root/expected-paths.txt" "$test_root/wl-copy.payload"
+[[ $(<"$test_root/wl-copy.args") == "--type text/plain" ]]
+
+run_paste 3 --path-home
+printf '%s\n' '~/Olá mundo.txt' '~/Documents/other.pdf' >"$test_root/expected-paths.txt"
+cmp "$test_root/expected-paths.txt" "$test_root/wl-copy.payload"
+
+if run_paste 4 --path-home; then
+  echo "home-relative mode unexpectedly accepted a path outside home" >&2
+  exit 1
+fi
 
 echo "paste helper tests passed"

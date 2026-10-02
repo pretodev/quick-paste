@@ -2,15 +2,15 @@
 
 A visual clipboard history for the Omarchy 4.x bar, inspired by macOS Paste.
 It opens as a full-width bottom panel with horizontally scrollable cards for
-text and images.
+text, images, and files.
 
 Copied HTTP(S) links get an Open Graph preview when the destination provides
 `og:description`, `og:image`, or `og:url`. Preview retrieval is best effort,
 with short timeouts and a one-megabyte response limit; the original URL remains
 the clipboard item and is always what gets pasted.
 
-Each new item records its source application, relative age, and either its
-Unicode character count or image dimensions. Existing Omarchy clipboard
+Each new item records its source application, relative age, and its
+Unicode character count, image dimensions, or file count. Existing Omarchy clipboard
 history is imported on first run; metadata unavailable in those older entries
 is shown as unknown.
 
@@ -36,7 +36,7 @@ button in the right bar section before the power widget:
 ```bash
 mkdir -p ~/.config/omarchy/plugins/qick-paste
 make
-cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh edit-in-tensaku.sh link-preview.py paste.sh manifest.json \
+cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh edit-in-tensaku.sh file-action.sh file-uris.py link-preview.py paste.sh manifest.json \
   ~/.config/omarchy/plugins/qick-paste/
 cp -a build/qick-paste-clipboard-provider ~/.config/omarchy/plugins/qick-paste/
 omarchy-shell shell rescanPlugins
@@ -64,9 +64,15 @@ omarchy bar move qick-paste --section right --before omarchy.power
   same action appears first in the card's context menu.
 - Right-click an image and choose **Abrir no Tensaku**. Saving the edit creates
   a new history item and leaves the original image untouched.
+- Copied files and folders appear together in one card. Click twice or press
+  Enter to paste the original file selection. The context menu can open the
+  files, reveal them in Files, or paste absolute paths or `~/` paths. Path
+  actions paste one path per line; `~/` is available only when every item is
+  inside the home directory. Use Ctrl+O to open, Ctrl+Shift+O to reveal,
+  Ctrl+P to paste absolute paths, or Ctrl+Shift+P to paste `~/` paths.
 - Scroll vertically or horizontally over the row to move through the history.
 
 The plugin stores its enriched history at
-`~/.local/state/omarchy/qick-paste-history.json` and deduplicated images under
+`~/.local/state/omarchy/qick-paste-history.json` by default and captured clipboard formats under
 `~/.local/state/omarchy/qick-paste-items/`. Source-application detection is
 best effort because Wayland does not expose clipboard ownership metadata.

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "qick-paste",
   "name": "Qick Paste",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": "Pretodev",
   "description": "A visual clipboard history for the Omarchy bar",
   "kinds": [

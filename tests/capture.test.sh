@@ -57,4 +57,31 @@ link_entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
 [[ $(jq -r '.linkPreview.image' <<<"$link_entry") == 'https://example.com/preview.png' ]]
 [[ $(jq -r '.linkPreview.url' <<<"$link_entry") == 'https://example.com/canonical' ]]
 
+cat >"$test_root/bin/wl-paste" <<'EOF'
+#!/bin/bash
+if [[ $1 == "--list-types" ]]; then
+  printf '%s\n' 'x-special/gnome-copied-files' 'text/uri-list' 'text/plain'
+  exit 0
+fi
+case "$2" in
+  x-special/gnome-copied-files) printf 'copy\nfile:///home/user/Ol%%C3%%A1%%20mundo.txt\nfile:///tmp/photo.png\n' ;;
+  text/uri-list) printf 'file:///home/user/Ol%%C3%%A1%%20mundo.txt\r\nfile:///tmp/photo.png\r\n' ;;
+  text/plain) printf '/home/user/Olá mundo.txt\n/tmp/photo.png' ;;
+  *) exit 1 ;;
+esac
+EOF
+chmod +x "$test_root/bin/wl-paste"
+file_entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
+  "$(dirname "$0")/../capture.sh")
+[[ $(jq -r '.type' <<<"$file_entry") == file ]]
+[[ $(jq -r '.paths | length' <<<"$file_entry") == 2 ]]
+[[ $(jq -r '.paths[0]' <<<"$file_entry") == '/home/user/Olá mundo.txt' ]]
+[[ $(jq -r '.formats | length' <<<"$file_entry") == 3 ]]
+
+printf 'file:///tmp/one\r\nfile:///tmp/two\r\n' >"$test_root/uris.txt"
+[[ $(python3 "$(dirname "$0")/../file-uris.py" "$test_root/uris.txt" text/uri-list \
+  | jq -r 'length') == 2 ]]
+printf 'https://example.com\n' >"$test_root/uris.txt"
+[[ $(python3 "$(dirname "$0")/../file-uris.py" "$test_root/uris.txt" text/uri-list) == '[]' ]]
+
 echo "capture helper tests passed"

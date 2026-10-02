@@ -25,6 +25,16 @@ assert.deepEqual(rich.formats, [
 ])
 assert.equal(history.entryKey(rich), "bundle:abc")
 
+const files = history.normalizeEntry({
+  type: "file", paths: ["/home/user/Olá mundo.txt", "/tmp/photo.png"], bundleId: "files",
+  formats: [{ mime: "text/uri-list", path: "/state/uri-list" }]
+})
+assert.deepEqual(files.paths, ["/home/user/Olá mundo.txt", "/tmp/photo.png"])
+assert.equal(history.entryKey(files), "bundle:files")
+assert.equal(history.normalizeEntry({ type: "file", paths: [] }), null)
+assert.equal(history.normalizeEntry({ type: "file", paths: ["relative"] }), null)
+assert.equal(history.parseHistory(JSON.stringify([files]))[0].type, "file")
+
 const link = history.normalizeEntry({
   type: "text",
   text: "https://example.com/original",

@@ -18,7 +18,7 @@ if (( $# > 0 )); then
   exit 2
 fi
 
-runtime_files=(BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh edit-in-tensaku.sh link-preview.py paste.sh manifest.json)
+runtime_files=(BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh edit-in-tensaku.sh file-action.sh file-uris.py link-preview.py paste.sh manifest.json)
 required_commands=(omarchy omarchy-shell jq wl-copy wl-paste wtype perl python3 curl setpriv node make gcc pkg-config wayland-scanner tensaku)
 
 for command_name in "${required_commands[@]}"; do
