@@ -28,6 +28,7 @@ test:
 	node tests/clipboard-history.test.js
 	bash tests/paste.test.sh
 	bash tests/capture.test.sh
+	bash tests/edit-in-tensaku.test.sh
 
 clean:
 	rm -rf -- $(build_dir)

@@ -18,6 +18,7 @@ is shown as unknown.
 
 - Omarchy 4.x with the Quickshell-based shell
 - `wl-clipboard`, `wtype`, `jq`, `perl`, `python`, `curl`, and `setpriv` (included by Omarchy)
+- `tensaku` for image editing
 - Build tools used by the installer: `make`, `gcc`, `pkg-config`,
   `wayland-scanner`, Wayland client headers, and the wlr-data-control protocol
 
@@ -35,7 +36,7 @@ button in the right bar section before the power widget:
 ```bash
 mkdir -p ~/.config/omarchy/plugins/qick-paste
 make
-cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh link-preview.py paste.sh manifest.json \
+cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh edit-in-tensaku.sh link-preview.py paste.sh manifest.json \
   ~/.config/omarchy/plugins/qick-paste/
 cp -a build/qick-paste-clipboard-provider ~/.config/omarchy/plugins/qick-paste/
 omarchy-shell shell rescanPlugins
@@ -61,9 +62,11 @@ omarchy bar move qick-paste --section right --before omarchy.power
   Shift+Enter to paste only `text/plain`, and Escape to close.
 - Use Ctrl+Enter to open a selected HTTP(S) link in the default browser. The
   same action appears first in the card's context menu.
+- Right-click an image and choose **Abrir no Tensaku**. Saving the edit creates
+  a new history item and leaves the original image untouched.
 - Scroll vertically or horizontally over the row to move through the history.
 
 The plugin stores its enriched history at
 `~/.local/state/omarchy/qick-paste-history.json` and deduplicated images under
-`~/.local/state/omarchy/qick-paste-images/`. Source-application detection is
+`~/.local/state/omarchy/qick-paste-items/`. Source-application detection is
 best effort because Wayland does not expose clipboard ownership metadata.

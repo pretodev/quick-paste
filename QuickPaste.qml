@@ -33,6 +33,7 @@ Item {
   readonly property string legacyHistoryPath: stateRoot + "/clipboard-history.json"
   readonly property string captureScript: localPath("capture.sh")
   readonly property string pasteScript: localPath("paste.sh")
+  readonly property string editScript: localPath("edit-in-tensaku.sh")
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property string pasteTargetName: appName(pasteTarget)
 
@@ -198,6 +199,15 @@ Item {
     Util.execArgv(["omarchy", "launch", "browser", url])
   }
 
+  function openInTensaku(index) {
+    if (tensakuEdit.running || index < 0 || index >= displayModel.count) return
+    var row = displayModel.get(index)
+    if (row.entryType !== "image") return
+    close()
+    tensakuEdit.command = [editScript, String(row.historyIndex)]
+    tensakuEdit.running = true
+  }
+
   function removeIndex(index) {
     if (index < 0 || index >= displayModel.count) return
     var row = displayModel.get(index)
@@ -268,6 +278,14 @@ Item {
     running: true
     stdout: SplitParser { onRead: function(data) { root.addCapturedJson(data) } }
     onExited: imageWatchRestart.restart()
+  }
+
+  Process {
+    id: tensakuEdit
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.addCapturedJson(text)
+    }
   }
 
   Timer {
@@ -755,6 +773,16 @@ Item {
                     && !!displayModel.get(root.contextMenuIndex).linkTarget
                   enabled: visible
                   onChosen: root.openLink(root.contextMenuIndex)
+                }
+
+                PasteMenuItem {
+                  width: parent.width
+                  iconText: "󰏫"
+                  label: tensakuEdit.running ? "Tensaku já está aberto" : "Abrir no Tensaku"
+                  visible: root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).entryType === "image"
+                  enabled: visible && !tensakuEdit.running
+                  onChosen: root.openInTensaku(root.contextMenuIndex)
                 }
 
                 PasteMenuItem {

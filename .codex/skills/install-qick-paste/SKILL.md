@@ -9,7 +9,7 @@ Este skill é autocontido no repositório para poder ser usado por qualquer ferr
 
 ## Antes de executar
 
-Leia o `AGENTS.md` na raiz e confirme que o sistema dispõe dos comandos `omarchy`, `omarchy-shell`, `jq`, `wl-copy`, `wl-paste`, `wtype`, `perl`, `setpriv` e `node`.
+Leia o `AGENTS.md` na raiz e confirme que o sistema dispõe dos comandos `omarchy`, `omarchy-shell`, `jq`, `wl-copy`, `wl-paste`, `wtype`, `perl`, `setpriv`, `node` e `tensaku`.
 
 A instalação modifica `~/.config/omarchy/plugins/qick-paste/` e a configuração da barra. Peça autorização antes de executar se a ferramenta exigir consentimento para alterações fora do repositório.
 
