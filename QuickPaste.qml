@@ -353,6 +353,9 @@ Item {
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.bottom: parent.bottom
+      anchors.leftMargin: Style.gapsOut
+      anchors.rightMargin: Style.gapsOut
+      anchors.bottomMargin: Style.gapsOut
       height: Math.min(Style.space(360), panel.height * 0.42)
       radius: Style.cornerRadius
       color: Color.menu.background
