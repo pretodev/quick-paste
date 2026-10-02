@@ -440,13 +440,14 @@ Item {
               required property int historyIndex
 
               readonly property bool selected: root.selectedIndex === index
+              readonly property real cardBorderWidth: Math.max(1, Style.space(2))
               width: Math.min(Style.space(292), resultList.width * 0.78)
               height: resultList.height
               radius: Style.cornerRadius
               color: selected ? Color.menu.selectedBackground : Util.alpha(Color.menu.text, 0.035)
               borderSpec: selected
-                ? Border.flat(Color.menu.selectedText, Math.max(1, Style.space(2)))
-                : Border.surfaceSpec("menu", "border", Util.alpha(Color.menu.border, 0.45), Math.max(1, Style.normalBorderWidth))
+                ? Border.flat(Color.menu.selectedText, cardBorderWidth)
+                : Border.surfaceSpec("menu", "border", Util.alpha(Color.menu.border, 0.45), cardBorderWidth)
               padding: Style.space(14)
 
               MouseArea {
