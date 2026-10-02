@@ -48,10 +48,15 @@ Item {
     rebuildDisplay()
     opened = true
     if (bar && typeof bar.requestPopout === "function") bar.requestPopout(hostWidget || root)
-    Qt.callLater(function() {
-      resultList.positionViewAtBeginning()
-      keyCatcher.forceActiveFocus()
-    })
+    initialPositionReset.restart()
+  }
+
+  function resetInitialPosition() {
+    if (!opened) return
+    resultList.cancelFlick()
+    resultList.forceLayout()
+    resultList.positionViewAtBeginning()
+    resultList.contentX = resultList.originX
   }
 
   function close() {
@@ -270,6 +275,18 @@ Item {
     running: root.opened
     triggeredOnStart: true
     onTriggered: root.clockNow = Date.now()
+  }
+
+  Timer {
+    id: initialPositionReset
+    interval: 0
+    onTriggered: {
+      root.resetInitialPosition()
+      Qt.callLater(function() {
+        root.resetInitialPosition()
+        if (root.opened) keyCatcher.forceActiveFocus()
+      })
+    }
   }
 
   FileView {
