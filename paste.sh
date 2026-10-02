@@ -3,23 +3,58 @@
 set -euo pipefail
 
 index="${1:-}"
-history_path="$HOME/.local/state/omarchy/clipboard-history.json"
+mode="${2:-}"
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy"
+plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+provider="${QICK_PASTE_PROVIDER:-$plugin_dir/qick-paste-clipboard-provider}"
+history_path="$state_root/qick-paste-history.json"
 [[ $index =~ ^[0-9]+$ ]] || exit 1
+[[ -z $mode || $mode == "--plain" ]] || exit 1
 [[ -r $history_path ]] || exit 1
 
 entry_type=$(jq -er --argjson index "$index" '.[$index].type' "$history_path")
 case "$entry_type" in
   text)
-    jq -j --argjson index "$index" '.[$index].text' "$history_path" | wl-copy
+    if [[ $mode == "--plain" ]]; then
+      jq -j --argjson index "$index" '.[$index].text' "$history_path" \
+        | wl-copy --type 'text/plain'
+    elif [[ $(jq -r --argjson index "$index" '.[$index].formats | length // 0' "$history_path") -gt 0 ]]; then
+      [[ -x $provider ]] || exit 1
+      provider_args=()
+      while IFS= read -r -d '' mime && IFS= read -r -d '' path; do
+        [[ -r $path ]] || exit 1
+        provider_args+=("$mime" "$path")
+      done < <(jq -j --argjson index "$index" \
+        '.[$index].formats[] | .mime, "\u0000", .path, "\u0000"' "$history_path")
+      "$provider" "${provider_args[@]}" >/dev/null 2>&1 &
+    else
+      jq -j --argjson index "$index" '.[$index].text' "$history_path" | wl-copy
+    fi
     ;;
   image)
-    mime=$(jq -er --argjson index "$index" '.[$index].mime // "image/png"' "$history_path")
-    path=$(jq -er --argjson index "$index" '.[$index].path' "$history_path")
-    [[ -r $path ]] || exit 1
-    wl-copy --type "$mime" <"$path"
+    [[ -z $mode ]] || exit 1
+    if [[ $(jq -r --argjson index "$index" '.[$index].formats | length // 0' "$history_path") -gt 0 ]]; then
+      [[ -x $provider ]] || exit 1
+      provider_args=()
+      while IFS= read -r -d '' mime && IFS= read -r -d '' path; do
+        [[ -r $path ]] || exit 1
+        provider_args+=("$mime" "$path")
+      done < <(jq -j --argjson index "$index" \
+        '.[$index].formats[] | .mime, "\u0000", .path, "\u0000"' "$history_path")
+      "$provider" "${provider_args[@]}" >/dev/null 2>&1 &
+    else
+      mime=$(jq -er --argjson index "$index" '.[$index].mime // "image/png"' "$history_path")
+      path=$(jq -er --argjson index "$index" '.[$index].path' "$history_path")
+      [[ -r $path ]] || exit 1
+      wl-copy --type "$mime" <"$path"
+    fi
     ;;
   *) exit 1 ;;
 esac
 
 sleep 0.15
-wtype -M shift -k Insert -m shift 2>/dev/null || true
+if [[ $mode == "--plain" ]]; then
+  wtype -M ctrl -M shift -k v -m shift -m ctrl 2>/dev/null || true
+else
+  wtype -M shift -k Insert -m shift 2>/dev/null || true
+fi

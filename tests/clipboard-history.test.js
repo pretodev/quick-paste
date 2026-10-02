@@ -10,6 +10,21 @@ assert.equal(history.normalizeEntry({ type: "text", text: "" }), null)
 assert.equal(history.normalizeEntry({ type: "unknown" }), null)
 assert.equal(history.parseHistory("broken").length, 0)
 
+const rich = history.normalizeEntry({
+  type: "text", text: "hello", bundleId: "abc",
+  formats: [
+    { mime: "text/plain", path: "/state/plain" },
+    { mime: "text/html", path: "/state/html" },
+    { mime: "", path: "/ignored" }
+  ]
+})
+assert.equal(rich.bundleId, "abc")
+assert.deepEqual(rich.formats, [
+  { mime: "text/plain", path: "/state/plain" },
+  { mime: "text/html", path: "/state/html" }
+])
+assert.equal(history.entryKey(rich), "bundle:abc")
+
 const original = [
   { type: "text", text: "older", capturedAt: 1 },
   { type: "text", text: "same", capturedAt: 2 }

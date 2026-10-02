@@ -21,13 +21,20 @@ Item {
   property bool legacyLoaded: false
   property bool initialized: false
   property double clockNow: Date.now()
+  property var pasteTarget: null
+  property bool contextMenuOpen: false
+  property int contextMenuIndex: -1
+  property real contextMenuX: 0
+  property real contextMenuY: 0
 
   readonly property int historyLimit: 300
   readonly property string stateRoot: Quickshell.env("HOME") + "/.local/state/omarchy"
-  readonly property string historyPath: stateRoot + "/clipboard-history.json"
-  readonly property string legacyHistoryPath: stateRoot + "/qick-paste-history.json"
+  readonly property string historyPath: stateRoot + "/qick-paste-history.json"
+  readonly property string legacyHistoryPath: stateRoot + "/clipboard-history.json"
+  readonly property string captureScript: localPath("capture.sh")
   readonly property string pasteScript: localPath("paste.sh")
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
+  readonly property string pasteTargetName: appName(pasteTarget)
 
   function localPath(name) {
     var value = String(Qt.resolvedUrl(name))
@@ -36,6 +43,7 @@ Item {
   }
 
   function open(payloadJson) {
+    pasteTarget = ToplevelManager.activeToplevel
     selectedIndex = -1
     rebuildDisplay()
     opened = true
@@ -47,6 +55,7 @@ Item {
   }
 
   function close() {
+    closeContextMenu()
     opened = false
     selectedIndex = -1
     if (bar && bar.activePopout === (hostWidget || root) && typeof bar.releasePopout === "function")
@@ -68,6 +77,21 @@ Item {
 
   function saveHistory() {
     historyFile.setText(JSON.stringify(history.slice(0, historyLimit), null, 2) + "\n")
+  }
+
+  function addCapturedJson(raw) {
+    try {
+      var entry = ClipboardHistory.normalizeEntry(JSON.parse(String(raw || "").trim()))
+      if (!entry) return
+      entry.capturedAt = Date.now()
+      var source = ToplevelManager.activeToplevel
+      entry.sourceAppId = source ? String(source.appId || "") : ""
+      entry.sourceName = appName(source)
+      entry.sourceIcon = entry.sourceAppId
+      history = ClipboardHistory.addEntry(history, entry, historyLimit)
+      saveHistory()
+      if (opened) rebuildDisplay()
+    } catch (error) {}
   }
 
   function rebuildDisplay() {
@@ -96,6 +120,26 @@ Item {
     resultList.positionViewAtIndex(index, ListView.Contain)
   }
 
+  function openContextMenu(card, index, mouseX, mouseY) {
+    if (index < 0 || index >= displayModel.count) return
+    selectIndex(index)
+    contextMenuIndex = index
+    contextMenuOpen = true
+    var point = card.mapToItem(menuLayer, mouseX, mouseY)
+    var margin = Style.space(8)
+    contextMenuX = Math.max(margin,
+      Math.min(point.x, menuLayer.width - contextSurface.width - margin))
+    contextMenuY = Math.max(margin,
+      Math.min(point.y, menuLayer.height - contextSurface.height - margin))
+    Qt.callLater(function() { contextKeyCatcher.forceActiveFocus() })
+  }
+
+  function closeContextMenu() {
+    contextMenuOpen = false
+    contextMenuIndex = -1
+    if (opened) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+  }
+
   function moveSelection(delta) {
     if (displayModel.count === 0) return
     if (selectedIndex < 0) {
@@ -118,11 +162,18 @@ Item {
     event.accepted = true
   }
 
-  function activateIndex(index) {
-    if (index < 0 || index >= displayModel.count) return
+  function activateIndex(index, plainText) {
+    if (!pasteTarget || index < 0 || index >= displayModel.count) return
     var row = displayModel.get(index)
+    if (plainText && row.entryType !== "text") return
     close()
-    Quickshell.execDetached([pasteScript, String(row.historyIndex)])
+    var command = [pasteScript, String(row.historyIndex)]
+    if (plainText) command.push("--plain")
+    Quickshell.execDetached(command)
+  }
+
+  function pastePlainText(index) {
+    activateIndex(index, true)
   }
 
   function removeIndex(index) {
@@ -143,11 +194,29 @@ Item {
     return Quickshell.iconPath(value || "application-x-executable", true)
   }
 
+  function appName(toplevel) {
+    if (!toplevel) return ""
+    var appId = String(toplevel.appId || "").trim()
+    var normalizedId = appId.toLowerCase().replace(/\.desktop$/, "")
+    var entries = DesktopEntries.applications.values || []
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i]
+      var entryId = String((entry && entry.id) || "").toLowerCase().replace(/\.desktop$/, "")
+      if (entryId === normalizedId && entry.name) return String(entry.name)
+    }
+    if (appId) {
+      var parts = appId.replace(/\.desktop$/i, "").split(/[.\/_-]+/)
+      var fallback = parts[parts.length - 1] || appId
+      return fallback.charAt(0).toUpperCase() + fallback.slice(1)
+    }
+    return String(toplevel.title || "")
+  }
+
   function ageText(value) {
     return ClipboardHistory.relativeTime(Number(value), clockNow)
   }
 
-  Component.onCompleted: legacyWatcherReaper.running = true
+  Component.onCompleted: captureInit.running = true
 
   ListModel {
     id: displayModel
@@ -155,8 +224,40 @@ Item {
   }
 
   Process {
-    id: legacyWatcherReaper
-    command: ["pkill", "-f", "wl-paste .*--watch .*qick-paste.*/capture\\.sh"]
+    id: captureInit
+    command: [root.captureScript]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.addCapturedJson(text)
+    }
+  }
+
+  Process {
+    id: textWatch
+    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "text", "--watch", root.captureScript]
+    running: true
+    stdout: SplitParser { onRead: function(data) { root.addCapturedJson(data) } }
+    onExited: textWatchRestart.restart()
+  }
+
+  Process {
+    id: imageWatch
+    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "image", "--watch", root.captureScript]
+    running: true
+    stdout: SplitParser { onRead: function(data) { root.addCapturedJson(data) } }
+    onExited: imageWatchRestart.restart()
+  }
+
+  Timer {
+    id: textWatchRestart
+    interval: 1000
+    onTriggered: if (!textWatch.running) textWatch.running = true
+  }
+
+  Timer {
+    id: imageWatchRestart
+    interval: 1000
+    onTriggered: if (!imageWatch.running) imageWatch.running = true
   }
 
   Timer {
@@ -264,7 +365,11 @@ Item {
             root.removeIndex(root.selectedIndex)
             event.accepted = true
           } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.selectedIndex >= 0) {
-            root.activateIndex(root.selectedIndex)
+            var row = displayModel.get(root.selectedIndex)
+            if ((event.modifiers & Qt.ShiftModifier) && row.entryType === "text")
+              root.pastePlainText(root.selectedIndex)
+            else
+              root.activateIndex(root.selectedIndex)
             event.accepted = true
           }
         }
@@ -347,10 +452,16 @@ Item {
               MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onWheel: function(event) { root.scrollHistory(event) }
-                onClicked: {
-                  if (root.selectedIndex === card.index) root.activateIndex(card.index)
-                  else root.selectIndex(card.index)
+                onClicked: function(mouse) {
+                  if (mouse.button === Qt.RightButton) {
+                    root.openContextMenu(card, card.index, mouse.x, mouse.y)
+                  } else if (root.selectedIndex === card.index) {
+                    root.activateIndex(card.index)
+                  } else {
+                    root.selectIndex(card.index)
+                  }
                 }
               }
 
@@ -484,8 +595,161 @@ Item {
               font.pixelSize: Style.font.title
             }
           }
+
+          Item {
+            id: menuLayer
+            anchors.fill: parent
+            z: 20
+            visible: root.contextMenuOpen || opacity > 0
+            opacity: root.contextMenuOpen ? 1 : 0
+            enabled: root.contextMenuOpen
+
+            Behavior on opacity {
+              NumberAnimation { duration: 100; easing.type: Easing.OutCubic }
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              onClicked: root.closeContextMenu()
+            }
+
+            BorderSurface {
+              id: contextSurface
+              x: root.contextMenuX
+              y: root.contextMenuY
+              width: Math.min(Style.space(360), menuLayer.width - Style.space(16))
+              height: menuColumn.implicitHeight + contentTopInset + contentBottomInset
+              padding: Style.space(6)
+              radius: Style.cornerRadius
+              color: Color.menu.background
+              borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border,
+                Math.max(1, Style.normalBorderWidth))
+
+              scale: root.contextMenuOpen ? 1 : 0.97
+              transformOrigin: Item.TopLeft
+              Behavior on scale {
+                NumberAnimation { duration: 100; easing.type: Easing.OutCubic }
+              }
+
+              Item {
+                id: contextKeyCatcher
+                anchors.fill: parent
+                focus: true
+                Keys.priority: Keys.BeforeItem
+                Keys.onPressed: function(event) {
+                  if (event.key === Qt.Key_Escape) {
+                    root.closeContextMenu()
+                    event.accepted = true
+                  } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                             && root.pasteTarget && root.contextMenuIndex >= 0) {
+                    var row = displayModel.get(root.contextMenuIndex)
+                    if ((event.modifiers & Qt.ShiftModifier) && row.entryType === "text")
+                      root.pastePlainText(root.contextMenuIndex)
+                    else if (!(event.modifiers & Qt.ShiftModifier))
+                      root.activateIndex(root.contextMenuIndex)
+                    event.accepted = true
+                  }
+                }
+              }
+
+              Column {
+                id: menuColumn
+                anchors.fill: parent
+                anchors.topMargin: contextSurface.contentTopInset
+                anchors.rightMargin: contextSurface.contentRightInset
+                anchors.bottomMargin: contextSurface.contentBottomInset
+                anchors.leftMargin: contextSurface.contentLeftInset
+
+                PasteMenuItem {
+                  width: parent.width
+                  iconText: "󰆒"
+                  label: "Colar em " + (root.pasteTargetName || "nenhum aplicativo")
+                  keymap: "Enter"
+                  enabled: root.pasteTarget !== null
+                  onChosen: root.activateIndex(root.contextMenuIndex)
+                }
+
+                PasteMenuItem {
+                  width: parent.width
+                  iconText: "󰉿"
+                  label: "Colar sem formatação"
+                  keymap: "Shift + Enter"
+                  enabled: root.pasteTarget !== null
+                    && root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).entryType === "text"
+                  onChosen: root.pastePlainText(root.contextMenuIndex)
+                }
+              }
+            }
+          }
         }
       }
+    }
+  }
+
+  component PasteMenuItem: Item {
+    id: menuItem
+
+    property string iconText: ""
+    property string label: ""
+    property string keymap: ""
+    signal chosen()
+
+    implicitHeight: Style.space(42)
+    opacity: enabled ? 1 : 0.4
+
+    Rectangle {
+      anchors.fill: parent
+      radius: Math.max(2, Style.cornerRadius)
+      color: itemMouse.containsMouse && menuItem.enabled
+        ? Style.hoverFillFor(Color.menu.text, Color.accent)
+        : "transparent"
+    }
+
+    Text {
+      anchors.left: parent.left
+      anchors.leftMargin: Style.space(10)
+      anchors.verticalCenter: parent.verticalCenter
+      width: Style.space(24)
+      text: menuItem.iconText
+      color: Color.menu.text
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.icon
+      horizontalAlignment: Text.AlignHCenter
+    }
+
+    Text {
+      anchors.left: parent.left
+      anchors.leftMargin: Style.space(44)
+      anchors.right: shortcut.left
+      anchors.rightMargin: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+      text: menuItem.label
+      color: Color.menu.text
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.body
+      elide: Text.ElideRight
+    }
+
+    Text {
+      id: shortcut
+      anchors.right: parent.right
+      anchors.rightMargin: Style.space(10)
+      anchors.verticalCenter: parent.verticalCenter
+      text: menuItem.keymap
+      color: Color.menu.text
+      opacity: 0.55
+      font.family: Style.font.menuFamily
+      font.pixelSize: Style.font.caption
+    }
+
+    MouseArea {
+      id: itemMouse
+      anchors.fill: parent
+      enabled: menuItem.enabled
+      hoverEnabled: true
+      cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onClicked: menuItem.chosen()
     }
   }
 }

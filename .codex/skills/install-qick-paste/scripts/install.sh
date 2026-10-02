@@ -19,7 +19,7 @@ if (( $# > 0 )); then
 fi
 
 runtime_files=(BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh paste.sh manifest.json)
-required_commands=(omarchy omarchy-shell jq wl-copy wl-paste wtype perl setpriv node)
+required_commands=(omarchy omarchy-shell jq wl-copy wl-paste wtype perl setpriv node make gcc pkg-config wayland-scanner)
 
 for command_name in "${required_commands[@]}"; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -44,9 +44,12 @@ if (( dry_run )); then
     echo "Would install or update runtime files in: $target_dir"
   fi
   echo "Would enable and place $plugin_id in the right section before omarchy.power"
+  echo "Would build and install the multi-format Wayland clipboard provider"
   echo "Would restart the Omarchy shell with: omarchy restart shell"
   exit 0
 fi
+
+make -C "$repo_dir" build/qick-paste-clipboard-provider
 
 if [[ -d $target_dir/.git ]]; then
   omarchy plugin update "$plugin_id"
@@ -69,6 +72,9 @@ else
   done
   omarchy-shell shell rescanPlugins >/dev/null
 fi
+
+install -m 0755 -- "$repo_dir/build/qick-paste-clipboard-provider" \
+  "$target_dir/qick-paste-clipboard-provider"
 
 omarchy plugin enable "$plugin_id" --section right --before omarchy.power
 

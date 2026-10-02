@@ -24,6 +24,21 @@ function normalizeEntry(value) {
     return null
   }
 
+  var formats = []
+  if (Array.isArray(value.formats)) {
+    for (var i = 0; i < value.formats.length; i++) {
+      var format = value.formats[i]
+      if (!format || typeof format !== "object") continue
+      var formatMime = stringValue(format.mime)
+      var formatPath = stringValue(format.path)
+      if (formatMime.length && formatPath.length)
+        formats.push({ mime: formatMime, path: formatPath })
+    }
+  }
+  if (formats.length) entry.formats = formats
+  var bundleId = stringValue(value.bundleId)
+  if (bundleId.length) entry.bundleId = bundleId
+
   var capturedAt = Number(value.capturedAtMs !== undefined ? value.capturedAtMs : value.capturedAt)
   entry.capturedAt = isFinite(capturedAt) && capturedAt > 0 ? capturedAt : 0
   entry.sourceAppId = stringValue(value.sourceAppId)
@@ -35,6 +50,7 @@ function normalizeEntry(value) {
 function entryKey(entry) {
   var value = normalizeEntry(entry)
   if (!value) return ""
+  if (value.bundleId) return "bundle:" + value.bundleId
   return value.type === "image" ? "image:" + value.path : "text:" + value.text
 }
 

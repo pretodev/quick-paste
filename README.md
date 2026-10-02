@@ -13,6 +13,8 @@ is shown as unknown.
 
 - Omarchy 4.x with the Quickshell-based shell
 - `wl-clipboard`, `wtype`, `jq`, `perl`, and `setpriv` (included by Omarchy)
+- Build tools used by the installer: `make`, `gcc`, `pkg-config`,
+  `wayland-scanner`, Wayland client headers, and the wlr-data-control protocol
 
 ## Validate
 
@@ -27,8 +29,10 @@ button in the right bar section before the power widget:
 
 ```bash
 mkdir -p ~/.config/omarchy/plugins/qick-paste
+make
 cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh paste.sh manifest.json \
   ~/.config/omarchy/plugins/qick-paste/
+cp -a build/qick-paste-clipboard-provider ~/.config/omarchy/plugins/qick-paste/
 omarchy-shell shell rescanPlugins
 omarchy plugin enable qick-paste --section right --before omarchy.power
 ```
@@ -48,7 +52,8 @@ omarchy bar move qick-paste --section right --before omarchy.power
 
 - Click the bar icon to open or close the panel.
 - Click a card once to select it; click it again to paste and close.
-- Use Left/Right to select, Enter to paste, and Escape to close.
+- Use Left/Right to select, Enter to paste with every original MIME type,
+  Shift+Enter to paste only `text/plain`, and Escape to close.
 - Scroll vertically or horizontally over the row to move through the history.
 
 The plugin stores its enriched history at

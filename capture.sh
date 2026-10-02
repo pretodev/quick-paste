@@ -1,59 +1,74 @@
 #!/bin/bash
 
-set -o pipefail
+# Snapshot every representation offered by the current Wayland clipboard.
+set -uo pipefail
 
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy"
-image_dir="$state_dir/qick-paste-images"
-mkdir -p "$image_dir"
+bundle_root="$state_dir/qick-paste-items"
+mkdir -p -- "$bundle_root"
 
-if [[ ${1:-} == "--init" ]]; then
-  exit 0
-fi
-
+[[ ${CLIPBOARD_STATE:-} != "sensitive" ]] || exit 0
 types=$(wl-paste --list-types 2>/dev/null || true)
-if [[ ${CLIPBOARD_STATE:-} == "sensitive" ]] || grep -qx 'x-kde-passwordManagerHint' <<<"$types"; then
-  exit 0
+if [[ -z $types ]] || grep -qx 'x-kde-passwordManagerHint' <<<"$types"; then exit 0; fi
+
+tmp_dir=$(mktemp -d --tmpdir="$bundle_root" .capture.XXXXXX) || exit 0
+trap 'rm -rf -- "$tmp_dir"' EXIT
+formats_json='[]'
+plain_path=""
+image_path=""
+image_mime=""
+
+while IFS= read -r mime; do
+  [[ -n $mime ]] || continue
+  case "$mime" in TARGETS|SAVE_TARGETS|TIMESTAMP|MULTIPLE|x-kde-passwordManagerHint) continue ;; esac
+  name=$(printf '%s' "$mime" | sha256sum | awk '{print $1}')
+  payload="$tmp_dir/$name"
+  if ! timeout 5s wl-paste --type "$mime" >"$payload" 2>/dev/null; then
+    rm -f -- "$payload"
+    continue
+  fi
+  formats_json=$(jq -cn --argjson formats "$formats_json" --arg mime "$mime" \
+    --arg path "$payload" '$formats + [{mime:$mime,path:$path}]')
+  case "$mime" in
+    'text/plain;charset=utf-8') plain_path="$payload" ;;
+    text/plain) [[ -n $plain_path ]] || plain_path="$payload" ;;
+    UTF8_STRING|STRING|TEXT) [[ -n $plain_path ]] || plain_path="$payload" ;;
+  esac
+  if [[ -z $image_path && $mime == image/* ]]; then image_path="$payload"; image_mime="$mime"; fi
+done <<<"$types"
+
+[[ $formats_json != '[]' ]] || exit 0
+if [[ -z $plain_path ]] && grep -qE '^(text/|UTF8_STRING$|STRING$|TEXT$)' <<<"$types"; then
+  payload="$tmp_dir/plain-fallback"
+  if timeout 5s wl-paste --type text --no-newline >"$payload" 2>/dev/null; then
+    plain_path="$payload"
+    formats_json=$(jq -cn --argjson formats "$formats_json" --arg path "$payload" \
+      '$formats + [{mime:"text/plain",path:$path}]')
+  fi
 fi
 
-emit_image() {
-  local mime="$1"
-  local ext tmp hash file
-  ext=${mime#image/}
-  [[ $ext == jpeg ]] && ext=jpg
-  tmp=$(mktemp --tmpdir="$image_dir" clipboard.XXXXXX) || return 0
-  cat >"$tmp"
-  if [[ ! -s $tmp ]]; then
-    rm -f "$tmp"
-    return 0
-  fi
-  hash=$(sha256sum "$tmp" | awk '{print $1}')
-  file="$image_dir/$hash.$ext"
-  if [[ -e $file ]]; then rm -f "$tmp"; else mv "$tmp" "$file"; fi
-  jq -cn --arg mime "$mime" --arg path "$file" '{type:"image",mime:$mime,path:$path}'
-}
+bundle_hash=$(while IFS= read -r mime && IFS= read -r path; do
+  printf '%s\0' "$mime"
+  sha256sum -- "$path" | awk '{print $1}'
+done < <(jq -r '.[] | .mime, .path' <<<"$formats_json") | sha256sum | awk '{print $1}')
+bundle_dir="$bundle_root/$bundle_hash"
+if [[ -d $bundle_dir ]]; then rm -rf -- "$tmp_dir"; else mv -- "$tmp_dir" "$bundle_dir"; fi
+trap - EXIT
 
-emit_text() {
-  perl -MEncode=decode,FB_CROAK,LEAVE_SRC -MJSON::PP=encode_json -0777 -e '
-    my $raw = <STDIN>;
-    exit unless length $raw;
-    my $text = eval { decode("UTF-8", $raw, FB_CROAK | LEAVE_SRC) };
-    $text = decode("UTF-8", $raw) unless defined $text;
-    print "{\"type\":\"text\",\"text\":", encode_json($text), "}\n";
-  '
-}
+formats_json=$(jq -cn --argjson formats "$formats_json" --arg old "$tmp_dir/" \
+  --arg new "$bundle_dir/" \
+  '$formats | map(.path |= if startswith($old) then $new + ltrimstr($old) else . end)')
+[[ -z $plain_path ]] || plain_path=${plain_path/#$tmp_dir\//$bundle_dir/}
+[[ -z $image_path ]] || image_path=${image_path/#$tmp_dir\//$bundle_dir/}
 
-case "${1:-}" in
-  text) emit_text; exit 0 ;;
-  image/*) emit_image "$1"; exit 0 ;;
-esac
-
-for mime in image/png image/jpeg image/webp image/gif image/bmp image/tiff; do
-  if grep -qx "$mime" <<<"$types"; then
-    timeout 2s wl-paste --type "$mime" 2>/dev/null | emit_image "$mime"
-    exit 0
-  fi
-done
-
-if grep -q '^text/' <<<"$types" || grep -qx 'UTF8_STRING' <<<"$types" || grep -qx 'STRING' <<<"$types"; then
-  wl-paste --type text --no-newline 2>/dev/null | emit_text
+if [[ -n $plain_path ]]; then
+  text_json=$(perl -MEncode=decode,FB_CROAK,LEAVE_SRC -MJSON::PP=encode_json -0777 \
+    -e '$raw=<STDIN>; $text=eval{decode("UTF-8",$raw,FB_CROAK|LEAVE_SRC)};
+        $text=decode("UTF-8",$raw) unless defined $text; print encode_json($text)' <"$plain_path")
+  jq -cn --arg id "$bundle_hash" --argjson text "$text_json" --argjson formats "$formats_json" \
+    '{type:"text",text:$text,mime:"text/plain",bundleId:$id,formats:$formats}'
+elif [[ -n $image_path ]]; then
+  jq -cn --arg id "$bundle_hash" --arg mime "$image_mime" --arg path "$image_path" \
+    --argjson formats "$formats_json" \
+    '{type:"image",mime:$mime,path:$path,bundleId:$id,formats:$formats}'
 fi
