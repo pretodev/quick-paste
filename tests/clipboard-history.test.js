@@ -34,6 +34,13 @@ assert.equal(history.entryKey(files), "bundle:files")
 assert.equal(history.normalizeEntry({ type: "file", paths: [] }), null)
 assert.equal(history.normalizeEntry({ type: "file", paths: ["relative"] }), null)
 assert.equal(history.parseHistory(JSON.stringify([files]))[0].type, "file")
+const grouped = history.addEntry([], files, 300)
+assert.equal(grouped.length, 1)
+assert.deepEqual(grouped[0].paths, files.paths)
+const folder = history.normalizeEntry({ type: "file", paths: ["/home/user/Documents"], isDirectory: true })
+assert.equal(folder.isDirectory, true)
+assert.equal(history.parseHistory(JSON.stringify([folder]))[0].isDirectory, true)
+assert.equal(history.normalizeEntry({ type: "file", paths: files.paths, isDirectory: true }).isDirectory, undefined)
 
 const link = history.normalizeEntry({
   type: "text",

@@ -80,8 +80,15 @@ formats_json=$(jq -cn --argjson formats "$formats_json" --arg old "$tmp_dir/" \
 [[ -z $image_path ]] || image_path=${image_path/#$tmp_dir\//$bundle_dir/}
 
 if [[ $file_paths != '[]' ]]; then
+  is_directory=false
+  if [[ $(jq 'length' <<<"$file_paths") -eq 1 ]]; then
+    IFS= read -r -d '' single_path < <(jq -j '.[0], "\u0000"' <<<"$file_paths")
+    [[ ! -d $single_path ]] || is_directory=true
+  fi
   jq -cn --arg id "$bundle_hash" --argjson paths "$file_paths" --argjson formats "$formats_json" \
-    '{type:"file",paths:$paths,mime:"text/uri-list",bundleId:$id,formats:$formats}'
+    --argjson isDirectory "$is_directory" \
+    '{type:"file",paths:$paths,mime:"text/uri-list",bundleId:$id,formats:$formats}
+     | if $isDirectory then . + {isDirectory:true} else . end'
 elif [[ -n $plain_path ]]; then
   text_json=$(perl -MEncode=decode,FB_CROAK,LEAVE_SRC -MJSON::PP=encode_json -0777 \
     -e '$raw=<STDIN>; $text=eval{decode("UTF-8",$raw,FB_CROAK|LEAVE_SRC)};

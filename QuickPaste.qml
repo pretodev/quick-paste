@@ -49,6 +49,13 @@ Item {
     try { return decodeURIComponent(value) } catch (error) { return value }
   }
 
+  function displayDirectoryPath(path) {
+    var home = Quickshell.env("HOME")
+    if (home && path === home) return "~"
+    if (home && path.indexOf(home + "/") === 0) return "~" + path.substring(home.length)
+    return path
+  }
+
   function open(payloadJson) {
     pasteTarget = ToplevelManager.activeToplevel
     searchField.text = ""
@@ -126,8 +133,7 @@ Item {
           fileNames.push(segments[segments.length - 1] || segments[segments.length - 2] || "/")
           if (path !== home && path.indexOf(home + "/") !== 0) homePaths = false
         }
-        fileTitle = fileNames.length === 1 ? fileNames[0]
-          : tr("andMore", { name: fileNames[0], count: fileNames.length - 1 })
+        fileTitle = fileNames.length === 1 ? fileNames[0] : tr("files")
       }
       displayModel.append({
         entryType: entry.type,
@@ -135,6 +141,9 @@ Item {
         previewImage: entry.type === "image" ? Util.fileUrl(entry.path) : "",
         fileTitle: fileTitle,
         fileCount: entry.type === "file" ? entry.paths.length : 0,
+        isDirectory: entry.type === "file" && entry.isDirectory === true,
+        directoryPath: entry.type === "file" && entry.isDirectory === true
+          ? displayDirectoryPath(entry.paths[0]) : "",
         homePaths: homePaths,
         isLink: entry.type === "text" && (!!entry.linkPreview || !!linkTarget),
         linkTarget: linkTarget,
@@ -253,7 +262,7 @@ Item {
   function pasteFilePath(index, relativeHome) {
     if (!pasteTarget || index < 0 || index >= displayModel.count) return
     var row = displayModel.get(index)
-    if (row.entryType !== "file" || (relativeHome && !row.homePaths)) return
+    if (row.entryType !== "file" || row.fileCount !== 1 || (relativeHome && !row.homePaths)) return
     close()
     Quickshell.execDetached([pasteScript, String(row.historyIndex),
       relativeHome ? "--path-home" : "--path-absolute"])
@@ -262,7 +271,7 @@ Item {
   function fileAction(index, mode) {
     if (index < 0 || index >= displayModel.count) return
     var row = displayModel.get(index)
-    if (row.entryType !== "file") return
+    if (row.entryType !== "file" || row.fileCount !== 1 || (mode === "open" && row.isDirectory)) return
     close()
     Quickshell.execDetached([fileActionScript, String(row.historyIndex), mode])
   }
@@ -271,7 +280,9 @@ Item {
     if (index < 0 || index >= displayModel.count) return false
     var row = displayModel.get(index)
     if (row.entryType !== "file") return false
+    if (row.fileCount !== 1) return false
     if (event.key === Qt.Key_O && event.modifiers === Qt.ControlModifier) {
+      if (row.isDirectory) return false
       fileAction(index, "open")
       return true
     }
@@ -582,6 +593,8 @@ Item {
               required property string previewImage
               required property string fileTitle
               required property int fileCount
+              required property bool isDirectory
+              required property string directoryPath
               required property bool homePaths
               required property bool isLink
               required property string linkTarget
@@ -661,7 +674,7 @@ Item {
 
                     Text {
                       width: parent.width
-                      text: (card.entryType === "file" ? root.tr(card.fileCount === 1 ? "file" : "files")
+                      text: (card.entryType === "file" ? root.tr(card.fileCount > 1 ? "files" : card.isDirectory ? "folder" : "file")
                         : card.entryType === "image" ? root.tr("image") : root.tr(card.isLink ? "link" : "text"))
                         + " · " + root.ageText(card.capturedAt)
                       color: card.selected ? Color.menu.selectedText : Color.menu.text
@@ -710,7 +723,7 @@ Item {
 
                     Text {
                       width: parent.width
-                      text: card.fileCount === 1 ? "󰈔" : "󰉓"
+                      text: card.fileCount > 1 ? "󰈢" : card.isDirectory ? "󰉋" : "󰈔"
                       color: card.selected ? Color.menu.selectedText : Color.menu.text
                       font.family: Style.font.menuFamily
                       font.pixelSize: Style.font.displayLarge
@@ -773,7 +786,9 @@ Item {
                   id: footer
                   width: parent.width
                   text: card.entryType === "file"
-                    ? root.count("fileOrFolderOne", "fileOrFolderMany", card.fileCount)
+                    ? (card.fileCount > 1 ? "󰈢  " + root.count("fileCountOne", "fileCountMany", card.fileCount)
+                      : card.isDirectory ? card.directoryPath
+                      : root.count("fileOrFolderOne", "fileOrFolderMany", card.fileCount))
                     : card.entryType === "image"
                     ? (preview.sourceSize.width > 0 ? preview.sourceSize.width + " × " + preview.sourceSize.height + " px" : root.tr("image"))
                     : (card.isLink ? (card.linkUrl || card.previewText)
@@ -905,22 +920,24 @@ Item {
                 PasteMenuItem {
                   width: parent.width
                   iconText: "󰈔"
-                  label: root.contextMenuIndex >= 0 && displayModel.get(root.contextMenuIndex).fileCount === 1
-                    ? root.tr("openFile") : root.tr("openFiles")
+                  label: root.tr("openFile")
                   keymap: "Ctrl + O"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "file"
+                    && displayModel.get(root.contextMenuIndex).fileCount === 1
+                    && !displayModel.get(root.contextMenuIndex).isDirectory
                   onChosen: root.fileAction(root.contextMenuIndex, "open")
                 }
 
                 PasteMenuItem {
                   width: parent.width
                   iconText: "󰝰"
-                  label: root.contextMenuIndex >= 0 && displayModel.get(root.contextMenuIndex).fileCount === 1
-                    ? root.tr("revealFile") : root.tr("revealFiles")
+                  label: root.tr(root.contextMenuIndex >= 0
+                    && displayModel.get(root.contextMenuIndex).isDirectory ? "revealFolder" : "revealFile")
                   keymap: "Ctrl + Shift + O"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "file"
+                    && displayModel.get(root.contextMenuIndex).fileCount === 1
                   onChosen: root.fileAction(root.contextMenuIndex, "reveal")
                 }
 
@@ -931,6 +948,7 @@ Item {
                   keymap: "Ctrl + P"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "file"
+                    && displayModel.get(root.contextMenuIndex).fileCount === 1
                   enabled: root.pasteTarget !== null
                   onChosen: root.pasteFilePath(root.contextMenuIndex, false)
                 }
@@ -942,6 +960,7 @@ Item {
                   keymap: "Ctrl + Shift + P"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "file"
+                    && displayModel.get(root.contextMenuIndex).fileCount === 1
                   enabled: root.pasteTarget !== null && root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).homePaths
                   onChosen: root.pasteFilePath(root.contextMenuIndex, true)
@@ -963,7 +982,9 @@ Item {
                   label: root.tr("pasteIn", { app: root.pasteTargetName || root.tr("noApp") })
                   keymap: "Enter"
                   visible: root.contextMenuIndex >= 0
-                    && displayModel.get(root.contextMenuIndex).entryType !== "file"
+                    && (displayModel.get(root.contextMenuIndex).entryType !== "file"
+                      || displayModel.get(root.contextMenuIndex).fileCount > 1
+                      || displayModel.get(root.contextMenuIndex).isDirectory)
                   enabled: root.pasteTarget !== null
                   onChosen: root.activateIndex(root.contextMenuIndex)
                 }

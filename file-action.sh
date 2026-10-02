@@ -16,7 +16,8 @@ while IFS= read -r -d '' path; do
   [[ $path == /* && -e $path ]] || exit 1
   paths+=("$path")
 done < <(jq -j --argjson index "$index" '.[$index].paths[] | ., "\u0000"' "$history_path")
-(( ${#paths[@]} > 0 )) || exit 1
+(( ${#paths[@]} == 1 )) || exit 1
+[[ $mode != open || ! -d ${paths[0]} ]] || exit 1
 
 if [[ $mode == reveal ]]; then
   exec uwsm-app -- nautilus --select "${paths[@]}"

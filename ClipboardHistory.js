@@ -45,6 +45,7 @@ function normalizeEntry(value) {
       paths.push(filePath)
     }
     entry = { type: "file", paths: paths, mime: "text/uri-list" }
+    if (paths.length === 1 && value.isDirectory === true) entry.isDirectory = true
   } else {
     return null
   }
