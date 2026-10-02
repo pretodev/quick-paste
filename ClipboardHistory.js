@@ -2,6 +2,22 @@ function stringValue(value) {
   return value === undefined || value === null ? "" : String(value)
 }
 
+function webUrl(value) {
+  var url = stringValue(value)
+  var lower = url.toLowerCase()
+  var prefixLength = lower.indexOf("https://") === 0 ? 8
+    : (lower.indexOf("http://") === 0 ? 7 : 0)
+  if (!prefixLength || url.length === prefixLength) return ""
+  for (var i = 0; i < url.length; i++) {
+    var code = url.charCodeAt(i)
+    if (code <= 32 || code === 127 || code === 160
+        || code === 0x1680 || (code >= 0x2000 && code <= 0x200A)
+        || code === 0x2028 || code === 0x2029 || code === 0x202F
+        || code === 0x205F || code === 0x3000) return ""
+  }
+  return url
+}
+
 function normalizeEntry(value) {
   if (typeof value === "string") value = { type: "text", text: value }
   if (!value || typeof value !== "object") return null
@@ -154,6 +170,7 @@ if (typeof module !== "undefined") {
     addEntry: addEntry,
     removeEntry: removeEntry,
     importLegacy: importLegacy,
+    webUrl: webUrl,
     characterCount: characterCount,
     relativeTime: relativeTime
   }

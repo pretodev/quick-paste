@@ -59,6 +59,8 @@ omarchy bar move qick-paste --section right --before omarchy.power
 - Click a card once to select it; click it again to paste and close.
 - Use Left/Right to select, Enter to paste with every original MIME type,
   Shift+Enter to paste only `text/plain`, and Escape to close.
+- Use Ctrl+Enter to open a selected HTTP(S) link in the default browser. The
+  same action appears first in the card's context menu.
 - Scroll vertically or horizontally over the row to move through the history.
 
 The plugin stores its enriched history at

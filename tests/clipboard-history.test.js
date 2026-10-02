@@ -42,6 +42,12 @@ assert.deepEqual(link.linkPreview, {
 assert.equal(history.normalizeEntry({
   type: "text", text: "https://example.com", linkPreview: {}
 }).linkPreview, undefined)
+assert.equal(history.webUrl("https://example.com/path?q=1"), "https://example.com/path?q=1")
+assert.equal(history.webUrl("HTTP://example.com"), "HTTP://example.com")
+assert.equal(history.webUrl("https://"), "")
+assert.equal(history.webUrl("https://example.com trailing"), "")
+assert.equal(history.webUrl("example.com"), "")
+assert.equal(history.webUrl(link.linkPreview.url), "https://example.com/canonical")
 
 const original = [
   { type: "text", text: "older", capturedAt: 1 },

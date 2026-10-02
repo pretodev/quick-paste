@@ -104,11 +104,15 @@ Item {
     for (var i = 0; i < history.length; i++) {
       var entry = ClipboardHistory.normalizeEntry(history[i])
       if (!entry) continue
+      var linkTarget = entry.type === "text" ? ClipboardHistory.webUrl(entry.text) : ""
+      if (!linkTarget && entry.linkPreview)
+        linkTarget = ClipboardHistory.webUrl(entry.linkPreview.url)
       displayModel.append({
         entryType: entry.type,
         previewText: entry.type === "text" ? entry.text : "",
         previewImage: entry.type === "image" ? Util.fileUrl(entry.path) : "",
-        isLink: entry.type === "text" && !!entry.linkPreview,
+        isLink: entry.type === "text" && (!!entry.linkPreview || !!linkTarget),
+        linkTarget: linkTarget,
         linkDescription: entry.linkPreview ? entry.linkPreview.description : "",
         linkImage: entry.linkPreview ? entry.linkPreview.image : "",
         linkUrl: entry.linkPreview ? entry.linkPreview.url : "",
@@ -183,6 +187,15 @@ Item {
 
   function pastePlainText(index) {
     activateIndex(index, true)
+  }
+
+  function openLink(index) {
+    if (index < 0 || index >= displayModel.count) return
+    var row = displayModel.get(index)
+    if (!row.linkTarget) return
+    var url = row.linkTarget
+    close()
+    Util.execArgv(["omarchy", "launch", "browser", url])
   }
 
   function removeIndex(index) {
@@ -388,6 +401,12 @@ Item {
           } else if (event.key === Qt.Key_Delete && root.selectedIndex >= 0) {
             root.removeIndex(root.selectedIndex)
             event.accepted = true
+          } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                     && (event.modifiers & Qt.ControlModifier)
+                     && root.selectedIndex >= 0
+                     && !!displayModel.get(root.selectedIndex).linkTarget) {
+            root.openLink(root.selectedIndex)
+            event.accepted = true
           } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.selectedIndex >= 0) {
             var row = displayModel.get(root.selectedIndex)
             if ((event.modifiers & Qt.ShiftModifier) && row.entryType === "text")
@@ -457,6 +476,7 @@ Item {
               required property string previewText
               required property string previewImage
               required property bool isLink
+              required property string linkTarget
               required property string linkDescription
               required property string linkImage
               required property string linkUrl
@@ -701,6 +721,12 @@ Item {
                     root.closeContextMenu()
                     event.accepted = true
                   } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                             && (event.modifiers & Qt.ControlModifier)
+                             && root.contextMenuIndex >= 0
+                             && !!displayModel.get(root.contextMenuIndex).linkTarget) {
+                    root.openLink(root.contextMenuIndex)
+                    event.accepted = true
+                  } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                              && root.pasteTarget && root.contextMenuIndex >= 0) {
                     var row = displayModel.get(root.contextMenuIndex)
                     if ((event.modifiers & Qt.ShiftModifier) && row.entryType === "text")
@@ -719,6 +745,17 @@ Item {
                 anchors.rightMargin: contextSurface.contentRightInset
                 anchors.bottomMargin: contextSurface.contentBottomInset
                 anchors.leftMargin: contextSurface.contentLeftInset
+
+                PasteMenuItem {
+                  width: parent.width
+                  iconText: "󰖟"
+                  label: "Abrir link no navegador"
+                  keymap: "Ctrl + Enter"
+                  visible: root.contextMenuIndex >= 0
+                    && !!displayModel.get(root.contextMenuIndex).linkTarget
+                  enabled: visible
+                  onChosen: root.openLink(root.contextMenuIndex)
+                }
 
                 PasteMenuItem {
                   width: parent.width
