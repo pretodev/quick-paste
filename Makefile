@@ -26,6 +26,7 @@ validate: test $(provider)
 
 test:
 	node tests/clipboard-history.test.js
+	node tests/i18n.test.js
 	bash tests/paste.test.sh
 	bash tests/file-action.test.sh
 	bash tests/capture.test.sh

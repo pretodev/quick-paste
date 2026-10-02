@@ -14,6 +14,9 @@ Unicode character count, image dimensions, or file count. Existing Omarchy clipb
 history is imported on first run; metadata unavailable in those older entries
 is shown as unknown.
 
+The interface follows the system locale in Portuguese, English, and Spanish.
+Other locales use English. Clipboard content and saved history are never translated.
+
 ## Requirements
 
 - Omarchy 4.x with the Quickshell-based shell
@@ -36,7 +39,7 @@ button in the right bar section before the power widget:
 ```bash
 mkdir -p ~/.config/omarchy/plugins/qick-paste
 make
-cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js capture.sh edit-in-tensaku.sh file-action.sh file-uris.py link-preview.py paste.sh manifest.json \
+cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js I18n.js capture.sh edit-in-tensaku.sh file-action.sh file-uris.py link-preview.py paste.sh manifest.json \
   ~/.config/omarchy/plugins/qick-paste/
 cp -a build/qick-paste-clipboard-provider ~/.config/omarchy/plugins/qick-paste/
 omarchy-shell shell rescanPlugins
@@ -65,7 +68,7 @@ omarchy bar move qick-paste --section right --before omarchy.power
   Shift+Enter to paste only `text/plain`, and Escape to close.
 - Use Ctrl+Enter to open a selected HTTP(S) link in the default browser. The
   same action appears first in the card's context menu.
-- Right-click an image and choose **Abrir no Tensaku**. Saving the edit creates
+- Right-click an image and choose **Open in Tensaku** (or its translation). Saving the edit creates
   a new history item and leaves the original image untouched.
 - Copied files and folders appear together in one card. Click twice or press
   Enter to paste the original file selection. The context menu can open the

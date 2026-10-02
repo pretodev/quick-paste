@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "ClipboardHistory.js" as ClipboardHistory
+import "I18n.js" as I18n
 
 Item {
   id: root
@@ -37,6 +38,10 @@ Item {
   readonly property string editScript: localPath("edit-in-tensaku.sh")
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property string pasteTargetName: appName(pasteTarget)
+  readonly property string localeName: Qt.locale().name
+
+  function tr(key, values) { return I18n.tr(localeName, key, values) }
+  function count(oneKey, manyKey, value) { return I18n.count(localeName, oneKey, manyKey, value) }
 
   function localPath(name) {
     var value = String(Qt.resolvedUrl(name))
@@ -122,7 +127,7 @@ Item {
           if (path !== home && path.indexOf(home + "/") !== 0) homePaths = false
         }
         fileTitle = fileNames.length === 1 ? fileNames[0]
-          : fileNames[0] + " e mais " + (fileNames.length - 1)
+          : tr("andMore", { name: fileNames[0], count: fileNames.length - 1 })
       }
       displayModel.append({
         entryType: entry.type,
@@ -344,7 +349,7 @@ Item {
   }
 
   function ageText(value) {
-    return ClipboardHistory.relativeTime(Number(value), clockNow)
+    return I18n.relativeTime(localeName, Number(value), clockNow)
   }
 
   Component.onCompleted: captureInit.running = true
@@ -517,7 +522,7 @@ Item {
           Text {
             width: parent.width - countLabel.width
             anchors.verticalCenter: parent.verticalCenter
-            text: "Área de transferência"
+            text: root.tr("clipboard")
             color: Color.menu.text
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.heading
@@ -527,7 +532,7 @@ Item {
           Text {
             id: countLabel
             anchors.verticalCenter: parent.verticalCenter
-            text: displayModel.count + (displayModel.count === 1 ? " item" : " itens")
+            text: root.count("itemOne", "itemMany", displayModel.count)
             color: Color.menu.text
             opacity: 0.55
             font.family: Style.font.menuFamily
@@ -542,7 +547,7 @@ Item {
           TextField {
             id: searchField
             width: parent.width
-            placeholderText: "Buscar no histórico"
+            placeholderText: root.tr("search")
             foreground: Color.menu.text
             accent: Color.accent
             onTextChanged: root.updateSearch()
@@ -646,7 +651,7 @@ Item {
 
                     Text {
                       width: parent.width
-                      text: card.sourceName || card.sourceAppId || "Aplicativo desconhecido"
+                      text: card.sourceName || card.sourceAppId || root.tr("unknownApp")
                       color: card.selected ? Color.menu.selectedText : Color.menu.text
                       font.family: Style.font.menuFamily
                       font.pixelSize: Style.font.body
@@ -656,8 +661,8 @@ Item {
 
                     Text {
                       width: parent.width
-                      text: (card.entryType === "file" ? (card.fileCount === 1 ? "Arquivo" : "Arquivos")
-                        : card.entryType === "image" ? "Imagem" : (card.isLink ? "Link" : "Texto"))
+                      text: (card.entryType === "file" ? root.tr(card.fileCount === 1 ? "file" : "files")
+                        : card.entryType === "image" ? root.tr("image") : root.tr(card.isLink ? "link" : "text"))
                         + " · " + root.ageText(card.capturedAt)
                       color: card.selected ? Color.menu.selectedText : Color.menu.text
                       opacity: 0.58
@@ -671,7 +676,7 @@ Item {
                     id: deleteButton
                     anchors.verticalCenter: parent.verticalCenter
                     iconText: "󰅙"
-                    tooltipText: "Excluir do histórico"
+                    tooltipText: root.tr("deleteHistory")
                     foreground: card.selected ? Color.menu.selectedText : Color.menu.text
                     hoverColor: Color.urgent
                     fontFamily: Style.font.menuFamily
@@ -768,11 +773,11 @@ Item {
                   id: footer
                   width: parent.width
                   text: card.entryType === "file"
-                    ? (card.fileCount === 1 ? "1 arquivo ou pasta" : card.fileCount + " arquivos ou pastas")
+                    ? root.count("fileOrFolderOne", "fileOrFolderMany", card.fileCount)
                     : card.entryType === "image"
-                    ? (preview.sourceSize.width > 0 ? preview.sourceSize.width + " × " + preview.sourceSize.height + " px" : "Imagem")
+                    ? (preview.sourceSize.width > 0 ? preview.sourceSize.width + " × " + preview.sourceSize.height + " px" : root.tr("image"))
                     : (card.isLink ? (card.linkUrl || card.previewText)
-                      : card.characterCount + (card.characterCount === 1 ? " caractere" : " caracteres"))
+                      : root.count("characterOne", "characterMany", card.characterCount))
                   color: card.selected ? Color.menu.selectedText : Color.menu.text
                   opacity: 0.55
                   font.family: Style.font.menuFamily
@@ -802,8 +807,8 @@ Item {
 
             Text {
               text: searchField.text.trim().length
-                ? "Nenhum resultado encontrado"
-                : "A área de transferência está vazia"
+                ? root.tr("noResults")
+                : root.tr("empty")
               color: Color.menu.text
               opacity: 0.65
               font.family: Style.font.menuFamily
@@ -889,7 +894,7 @@ Item {
                 PasteMenuItem {
                   width: parent.width
                   iconText: "󰖟"
-                  label: "Abrir link no navegador"
+                  label: root.tr("openLink")
                   keymap: "Ctrl + Enter"
                   visible: root.contextMenuIndex >= 0
                     && !!displayModel.get(root.contextMenuIndex).linkTarget
@@ -901,7 +906,7 @@ Item {
                   width: parent.width
                   iconText: "󰈔"
                   label: root.contextMenuIndex >= 0 && displayModel.get(root.contextMenuIndex).fileCount === 1
-                    ? "Abrir arquivo" : "Abrir arquivos"
+                    ? root.tr("openFile") : root.tr("openFiles")
                   keymap: "Ctrl + O"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "file"
@@ -912,7 +917,7 @@ Item {
                   width: parent.width
                   iconText: "󰝰"
                   label: root.contextMenuIndex >= 0 && displayModel.get(root.contextMenuIndex).fileCount === 1
-                    ? "Abrir local do arquivo" : "Abrir local dos arquivos"
+                    ? root.tr("revealFile") : root.tr("revealFiles")
                   keymap: "Ctrl + Shift + O"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "file"
@@ -922,7 +927,7 @@ Item {
                 PasteMenuItem {
                   width: parent.width
                   iconText: "󰌷"
-                  label: "Colar caminho absoluto"
+                  label: root.tr("pasteAbsolute")
                   keymap: "Ctrl + P"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "file"
@@ -933,7 +938,7 @@ Item {
                 PasteMenuItem {
                   width: parent.width
                   iconText: "󰉋"
-                  label: "Colar caminho com ~/"
+                  label: root.tr("pasteHome")
                   keymap: "Ctrl + Shift + P"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "file"
@@ -945,7 +950,7 @@ Item {
                 PasteMenuItem {
                   width: parent.width
                   iconText: "󰏫"
-                  label: tensakuEdit.running ? "Tensaku já está aberto" : "Abrir no Tensaku"
+                  label: root.tr(tensakuEdit.running ? "tensakuBusy" : "openTensaku")
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "image"
                   enabled: visible && !tensakuEdit.running
@@ -955,7 +960,7 @@ Item {
                 PasteMenuItem {
                   width: parent.width
                   iconText: "󰆒"
-                  label: "Colar em " + (root.pasteTargetName || "nenhum aplicativo")
+                  label: root.tr("pasteIn", { app: root.pasteTargetName || root.tr("noApp") })
                   keymap: "Enter"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType !== "file"
@@ -966,7 +971,7 @@ Item {
                 PasteMenuItem {
                   width: parent.width
                   iconText: "󰉿"
-                  label: "Colar sem formatação"
+                  label: root.tr("pastePlain")
                   keymap: "Shift + Enter"
                   visible: root.contextMenuIndex >= 0
                     && displayModel.get(root.contextMenuIndex).entryType === "text"
