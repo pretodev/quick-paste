@@ -17,7 +17,7 @@ $(protocol_header): $(protocol_xml) | $(build_dir)
 $(protocol_code): $(protocol_xml) | $(build_dir)
 	wayland-scanner private-code $< $@
 
-$(provider): clipboard-provider.c $(protocol_header) $(protocol_code)
+$(provider): native/clipboard-provider.c $(protocol_header) $(protocol_code)
 	$(CC) $(CFLAGS) -std=c11 -Wall -Wextra -Werror -O2 \
 		-I$(build_dir) $< $(protocol_code) -o $@ $$(pkg-config --cflags --libs wayland-client)
 

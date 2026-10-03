@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict")
-const history = require("../ClipboardHistory.js")
+const history = require("../ui/ClipboardHistory.js")
 
 const text = history.normalizeEntry({ type: "text", text: "hello", capturedAt: 42 })
 assert.deepEqual(text, {

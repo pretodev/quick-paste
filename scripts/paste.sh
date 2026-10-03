@@ -5,7 +5,7 @@ set -euo pipefail
 index="${1:-}"
 mode="${2:-}"
 state_root="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy"
-plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 provider="${QICK_PASTE_PROVIDER:-$plugin_dir/qick-paste-clipboard-provider}"
 history_path="$state_root/qick-paste-history.json"
 [[ $index =~ ^[0-9]+$ ]] || exit 1

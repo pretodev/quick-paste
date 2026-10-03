@@ -32,7 +32,7 @@ EOF
 chmod +x "$test_root/bin/curl"
 
 entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
-  "$(dirname "$0")/../capture.sh")
+  "$(dirname "$0")/../scripts/capture.sh")
 
 [[ $(jq -r '.type' <<<"$entry") == text ]]
 [[ $(jq -r '.text' <<<"$entry") == 'Hello rich world' ]]
@@ -46,12 +46,12 @@ html_path=$(jq -r '.formats[] | select(.mime == "text/html") | .path' <<<"$entry
 [[ $(jq -r '.linkPreview // empty' <<<"$entry") == '' ]]
 
 second=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
-  "$(dirname "$0")/../capture.sh")
+  "$(dirname "$0")/../scripts/capture.sh")
 [[ $(jq -r '.bundleId' <<<"$entry") == "$(jq -r '.bundleId' <<<"$second")" ]]
 
 sed -i "s/printf 'Hello rich world'/printf 'https:\/\/example.com\/article'/" "$test_root/bin/wl-paste"
 link_entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
-  "$(dirname "$0")/../capture.sh")
+  "$(dirname "$0")/../scripts/capture.sh")
 [[ $(jq -r '.text' <<<"$link_entry") == 'https://example.com/article' ]]
 [[ $(jq -r '.linkPreview.description' <<<"$link_entry") == 'A rich & useful page' ]]
 [[ $(jq -r '.linkPreview.image' <<<"$link_entry") == 'https://example.com/preview.png' ]]
@@ -72,7 +72,7 @@ esac
 EOF
 chmod +x "$test_root/bin/wl-paste"
 file_entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
-  "$(dirname "$0")/../capture.sh")
+  "$(dirname "$0")/../scripts/capture.sh")
 [[ $(jq -r '.type' <<<"$file_entry") == file ]]
 [[ $(jq -r '.paths | length' <<<"$file_entry") == 2 ]]
 [[ $(jq -r '.paths[0]' <<<"$file_entry") == '/home/user/Olá mundo.txt' ]]
@@ -91,15 +91,15 @@ printf 'file://%s\r\n' "$QICK_PASTE_TEST_FOLDER"
 EOF
 chmod +x "$test_root/bin/wl-paste"
 folder_entry=$(env XDG_STATE_HOME="$test_root/state" QICK_PASTE_TEST_FOLDER="$test_root/folder" \
-  PATH="$test_root/bin:$PATH" "$(dirname "$0")/../capture.sh")
+  PATH="$test_root/bin:$PATH" "$(dirname "$0")/../scripts/capture.sh")
 [[ $(jq -r '.type' <<<"$folder_entry") == file ]]
 [[ $(jq -r '.paths | length' <<<"$folder_entry") == 1 ]]
 [[ $(jq -r '.isDirectory' <<<"$folder_entry") == true ]]
 
 printf 'file:///tmp/one\r\nfile:///tmp/two\r\n' >"$test_root/uris.txt"
-[[ $(python3 "$(dirname "$0")/../file-uris.py" "$test_root/uris.txt" text/uri-list \
+[[ $(python3 "$(dirname "$0")/../scripts/file-uris.py" "$test_root/uris.txt" text/uri-list \
   | jq -r 'length') == 2 ]]
 printf 'https://example.com\n' >"$test_root/uris.txt"
-[[ $(python3 "$(dirname "$0")/../file-uris.py" "$test_root/uris.txt" text/uri-list) == '[]' ]]
+[[ $(python3 "$(dirname "$0")/../scripts/file-uris.py" "$test_root/uris.txt" text/uri-list) == '[]' ]]
 
 echo "capture helper tests passed"

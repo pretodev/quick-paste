@@ -32,10 +32,10 @@ Item {
   readonly property string stateRoot: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/omarchy"
   readonly property string historyPath: stateRoot + "/qick-paste-history.json"
   readonly property string legacyHistoryPath: stateRoot + "/clipboard-history.json"
-  readonly property string captureScript: localPath("capture.sh")
-  readonly property string pasteScript: localPath("paste.sh")
-  readonly property string fileActionScript: localPath("file-action.sh")
-  readonly property string editScript: localPath("edit-in-tensaku.sh")
+  readonly property string captureScript: localPath("../scripts/capture.sh")
+  readonly property string pasteScript: localPath("../scripts/paste.sh")
+  readonly property string fileActionScript: localPath("../scripts/file-action.sh")
+  readonly property string editScript: localPath("../scripts/edit-in-tensaku.sh")
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property string pasteTargetName: appName(pasteTarget)
   readonly property string localeName: Qt.locale().name

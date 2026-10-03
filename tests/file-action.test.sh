@@ -25,7 +25,7 @@ chmod +x "$test_root/bin/gio" "$test_root/bin/uwsm-app"
 
 run_action() {
   env XDG_STATE_HOME="$test_root/state" QICK_PASTE_TEST_ROOT="$test_root" \
-    PATH="$test_root/bin:$PATH" "$(dirname "$0")/../file-action.sh" "$@"
+    PATH="$test_root/bin:$PATH" "$(dirname "$0")/../scripts/file-action.sh" "$@"
 }
 
 run_action 0 reveal

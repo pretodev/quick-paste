@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict")
-const i18n = require("../I18n.js")
+const i18n = require("../ui/I18n.js")
 
 for (const locale of ["en_US", "pt_BR", "es_ES"]) {
   const language = i18n.language(locale)

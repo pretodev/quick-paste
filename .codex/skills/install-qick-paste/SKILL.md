@@ -18,7 +18,7 @@ Não apague o histórico em `~/.local/state/omarchy/`. Não edite `/usr/share/om
 ## Fluxo
 
 1. Na raiz do repositório, execute `make validate`.
-2. Execute `skills/install-qick-paste/scripts/install.sh`.
+2. Execute `.codex/skills/install-qick-paste/scripts/install.sh`.
 3. Confirme que `omarchy plugin list --json` contém `quick-paste` e que o plugin está habilitado.
 4. Reinicie o shell com `omarchy restart shell`.
 5. Informe se foi uma instalação nova, uma atualização local ou uma atualização Git.
@@ -28,7 +28,7 @@ O instalador é idempotente. Ele copia somente os arquivos de runtime, preserva 
 Para apenas inspecionar o que seria feito, use:
 
 ```bash
-skills/install-qick-paste/scripts/install.sh --dry-run
+.codex/skills/install-qick-paste/scripts/install.sh --dry-run
 ```
 
 Se a validação, atualização ou descoberta do plugin falhar, pare e mostre o erro; não tente contornar a validação oficial nem substituir configurações inteiras do Omarchy.

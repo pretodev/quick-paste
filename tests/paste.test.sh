@@ -41,7 +41,7 @@ run_paste() {
     QICK_PASTE_TEST_ROOT="$test_root" \
     QICK_PASTE_PROVIDER="$test_root/bin/provider" \
     PATH="$test_root/bin:$PATH" \
-    "$(dirname "$0")/../paste.sh" "$@"
+    "$(dirname "$0")/../scripts/paste.sh" "$@"
 }
 
 run_paste 0 --plain

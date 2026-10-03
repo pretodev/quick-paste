@@ -41,7 +41,7 @@ BarWidget {
   Loader {
     id: panelLoader
     active: true
-    source: Qt.resolvedUrl("QuickPaste.qml")
+    source: Qt.resolvedUrl("ui/QuickPaste.qml")
     visible: false
     onLoaded: {
       root.injectPanel()

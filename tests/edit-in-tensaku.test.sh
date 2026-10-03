@@ -31,7 +31,7 @@ EOF
 chmod +x "$fake_tensaku"
 export QICK_PASTE_TENSAKU="$fake_tensaku"
 
-result=$($repo_dir/edit-in-tensaku.sh 0)
+result=$($repo_dir/scripts/edit-in-tensaku.sh 0)
 [[ $(jq -r '.type' <<<"$result") == image ]]
 [[ $(jq -r '.mime' <<<"$result") == image/png ]]
 edited_path=$(jq -r '.path' <<<"$result")
@@ -40,10 +40,10 @@ edited_path=$(jq -r '.path' <<<"$result")
 [[ $(<"$source_path") == 'original image' ]]
 
 export TEST_EDIT_MODE=unchanged
-result=$($repo_dir/edit-in-tensaku.sh 0)
+result=$($repo_dir/scripts/edit-in-tensaku.sh 0)
 [[ -z $result ]]
 export TEST_EDIT_MODE=cancelled
-result=$($repo_dir/edit-in-tensaku.sh 0)
+result=$($repo_dir/scripts/edit-in-tensaku.sh 0)
 [[ -z $result ]]
 
 printf 'edit-in-tensaku tests passed\n'

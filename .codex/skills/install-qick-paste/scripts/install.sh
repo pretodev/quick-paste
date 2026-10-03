@@ -18,7 +18,12 @@ if (( $# > 0 )); then
   exit 2
 fi
 
-runtime_files=(BarWidget.qml QuickPaste.qml ClipboardHistory.js I18n.js capture.sh edit-in-tensaku.sh file-action.sh file-uris.py link-preview.py paste.sh manifest.json)
+runtime_files=(
+  manifest.json BarWidget.qml
+  ui/QuickPaste.qml ui/ClipboardHistory.js ui/I18n.js
+  scripts/capture.sh scripts/edit-in-tensaku.sh scripts/file-action.sh
+  scripts/file-uris.py scripts/link-preview.py scripts/paste.sh
+)
 required_commands=(omarchy omarchy-shell jq wl-copy wl-paste wtype perl python3 curl setpriv node make gcc pkg-config wayland-scanner tensaku)
 
 for command_name in "${required_commands[@]}"; do
@@ -68,7 +73,7 @@ else
   for file in "${runtime_files[@]}"; do
     mode=0644
     [[ $file == *.sh ]] && mode=0755
-    install -m "$mode" -- "$repo_dir/$file" "$target_dir/$file"
+    install -D -m "$mode" -- "$repo_dir/$file" "$target_dir/$file"
   done
   omarchy-shell shell rescanPlugins >/dev/null
 fi

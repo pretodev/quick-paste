@@ -7,12 +7,13 @@ Quick Paste é um plugin de histórico visual da área de transferência para a 
 Componentes principais:
 
 - `manifest.json`: identidade, versão, tipo e ponto de entrada do plugin.
-- `BarWidget.qml`: widget exibido na barra.
-- `QuickPaste.qml`: painel e interação principal.
-- `ClipboardHistory.js`: modelo e persistência do histórico.
-- `capture.sh`: captura segura de texto ou imagem do clipboard.
-- `paste.sh`: restaura o item escolhido e simula a colagem.
-- `tests/clipboard-history.test.js`: testes do modelo de histórico.
+- `BarWidget.qml`: widget exibido na barra e ponto de entrada do Omarchy.
+- `ui/QuickPaste.qml`: painel e interação principal.
+- `ui/ClipboardHistory.js`: modelo e persistência do histórico.
+- `ui/I18n.js`: traduções da interface.
+- `scripts/`: helpers de captura, colagem, arquivos e prévia de links.
+- `native/clipboard-provider.c`: fonte do provedor Wayland de formatos do clipboard.
+- `tests/`: verificações do modelo e dos helpers.
 
 O estado persistente pertence ao usuário e fica em `${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/`. Ele não faz parte do checkout e não deve ser apagado durante instalação, atualização ou testes.
 

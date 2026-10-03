@@ -86,6 +86,13 @@ content and saved history are never translated.
 
 ## Development
 
+The plugin keeps Omarchy's entry files (`manifest.json` and `BarWidget.qml`)
+at the repository root. The panel and its JavaScript modules are in `ui/`,
+runtime helpers are in `scripts/`, and the source of the Wayland clipboard
+provider is in `native/`. Tests live in `tests/`; generated build files stay
+in `build/`. The local installer under `.codex/skills/install-qick-paste/`
+copies only the runtime files and the compiled provider.
+
 Validate the manifest, build the clipboard provider, and run the project checks
 with:
 
