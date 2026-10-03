@@ -185,6 +185,14 @@ Item {
     Qt.callLater(function() { contextKeyCatcher.forceActiveFocus() })
   }
 
+  function openSelectedContextMenu() {
+    if (selectedIndex < 0 || selectedIndex >= displayModel.count) return false
+    var card = resultList.itemAtIndex(selectedIndex)
+    if (!card) return false
+    openContextMenu(card, selectedIndex, card.width / 2, card.height / 2)
+    return true
+  }
+
   function closeContextMenu() {
     contextMenuOpen = false
     contextMenuIndex = -1
@@ -195,6 +203,9 @@ Item {
     if (event.key === Qt.Key_Escape) {
       close()
       event.accepted = true
+    } else if ((event.key === Qt.Key_Menu && event.modifiers === Qt.NoModifier)
+               || (event.key === Qt.Key_F10 && event.modifiers === Qt.ShiftModifier)) {
+      if (openSelectedContextMenu()) event.accepted = true
     } else if (event.key === Qt.Key_Left && event.modifiers === Qt.NoModifier) {
       moveSelection(-1)
       event.accepted = true
