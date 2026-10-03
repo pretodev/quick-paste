@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-plugin_id="qick-paste"
+plugin_id="quick-paste"
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_dir=$(cd -- "$script_dir/../../../.." && pwd)
 plugins_dir="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins"
