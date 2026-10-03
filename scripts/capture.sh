@@ -106,7 +106,9 @@ elif [[ -n $plain_path ]]; then
     '{type:"text",text:$text,mime:"text/plain",bundleId:$id,formats:$formats}
      | if $linkPreview == null then . else . + {linkPreview:$linkPreview} end'
 elif [[ -n $image_path ]]; then
+  image_hash=$(sha256sum -- "$image_path" | awk '{print $1}')
   jq -cn --arg id "$bundle_hash" --arg mime "$image_mime" --arg path "$image_path" \
+    --arg imageHash "$image_hash" \
     --argjson formats "$formats_json" \
-    '{type:"image",mime:$mime,path:$path,bundleId:$id,formats:$formats}'
+    '{type:"image",mime:$mime,path:$path,bundleId:$id,imageHash:$imageHash,formats:$formats}'
 fi

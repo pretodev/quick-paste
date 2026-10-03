@@ -23,6 +23,7 @@ runtime_files=(
   ui/QuickPaste.qml ui/ClipboardHistory.js ui/I18n.js
   scripts/capture.sh scripts/edit-in-tensaku.sh scripts/file-action.sh
   scripts/file-uris.py scripts/link-preview.py scripts/paste.sh
+  scripts/remove-legacy-image.py
 )
 required_commands=(omarchy omarchy-shell jq wl-copy wl-paste wtype perl python3 curl setpriv node make gcc pkg-config wayland-scanner tensaku)
 
@@ -72,7 +73,7 @@ else
   mkdir -p -- "$target_dir"
   for file in "${runtime_files[@]}"; do
     mode=0644
-    [[ $file == *.sh ]] && mode=0755
+    [[ $file == *.sh || $file == scripts/remove-legacy-image.py ]] && mode=0755
     install -D -m "$mode" -- "$repo_dir/$file" "$target_dir/$file"
   done
   omarchy-shell shell rescanPlugins >/dev/null

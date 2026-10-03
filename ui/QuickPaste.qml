@@ -18,6 +18,8 @@ Item {
   property var history: []
   property var loadedHistory: []
   property var legacyHistory: []
+  property var nativeHistory: []
+  property bool nativeHistoryValid: false
   property bool historyLoaded: false
   property bool legacyLoaded: false
   property bool initialized: false
@@ -37,6 +39,7 @@ Item {
   readonly property string pasteScript: localPath("../scripts/paste.sh")
   readonly property string fileActionScript: localPath("../scripts/file-action.sh")
   readonly property string editScript: localPath("../scripts/edit-in-tensaku.sh")
+  readonly property string removeLegacyImageScript: localPath("../scripts/remove-legacy-image.py")
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property string pasteTargetName: appName(pasteTarget)
   readonly property string localeName: Qt.locale().name
@@ -374,6 +377,10 @@ Item {
   function removeIndex(index) {
     if (index < 0 || index >= displayModel.count) return
     var row = displayModel.get(index)
+    var entry = history[row.historyIndex]
+    syncNativeHistory([entry])
+    if (entry.type === "image" && !entry.imageHash)
+      Quickshell.execDetached([removeLegacyImageScript, entry.path])
     history = ClipboardHistory.removeEntry(history, row.historyIndex)
     if (displayModel.count <= 1) selectedIndex = -1
     else if (selectedIndex >= displayModel.count - 1) selectedIndex = displayModel.count - 2
@@ -384,10 +391,22 @@ Item {
 
   function clearHistory() {
     if (!history.length) return
+    if (nativeHistoryValid) {
+      nativeHistory = []
+      nativeHistoryFile.setText("[]\n")
+    }
     history = []
     selectedIndex = -1
     saveHistory()
     rebuildDisplay()
+  }
+
+  function syncNativeHistory(entries) {
+    if (!nativeHistoryValid) return
+    var updated = ClipboardHistory.removeNativeEntries(nativeHistory, entries)
+    if (updated.length === nativeHistory.length) return
+    nativeHistory = updated
+    nativeHistoryFile.setText(JSON.stringify(updated, null, 2) + "\n")
   }
 
   function appIconSource(icon) {
@@ -500,18 +519,32 @@ Item {
   }
 
   FileView {
+    id: nativeHistoryFile
     path: root.legacyHistoryPath
+    watchChanges: true
+    atomicWrites: true
     printErrors: false
     onLoaded: {
-      root.legacyHistory = ClipboardHistory.parseHistory(text())
+      try {
+        var parsed = JSON.parse(text())
+        if (!Array.isArray(parsed)) throw new Error("Invalid clipboard history")
+        root.nativeHistory = parsed
+        root.nativeHistoryValid = true
+        root.legacyHistory = ClipboardHistory.parseHistory(text())
+      } catch (error) {
+        root.nativeHistoryValid = false
+        root.legacyHistory = []
+      }
       root.legacyLoaded = true
       root.maybeInitialize()
     }
     onLoadFailed: {
+      root.nativeHistoryValid = false
       root.legacyHistory = []
       root.legacyLoaded = true
       root.maybeInitialize()
     }
+    onFileChanged: reload()
   }
 
   PanelWindow {

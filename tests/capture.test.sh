@@ -79,6 +79,17 @@ file_entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
 [[ $(jq -r '.formats | length' <<<"$file_entry") == 3 ]]
 [[ $(jq -r '.isDirectory // false' <<<"$file_entry") == false ]]
 
+cat >"$test_root/bin/wl-paste" <<'EOF'
+#!/bin/bash
+if [[ $1 == "--list-types" ]]; then printf '%s\n' 'image/png'; exit 0; fi
+[[ $2 == image/png ]] || exit 1
+printf 'fake image bytes'
+EOF
+chmod +x "$test_root/bin/wl-paste"
+image_entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
+  "$(dirname "$0")/../scripts/capture.sh")
+[[ $(jq -r '.imageHash' <<<"$image_entry") == "$(printf 'fake image bytes' | sha256sum | awk '{print $1}')" ]]
+
 mkdir -p -- "$test_root/folder"
 cat >"$test_root/bin/wl-paste" <<'EOF'
 #!/bin/bash

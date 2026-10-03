@@ -87,6 +87,19 @@ assert.notEqual(removed, original)
 assert.deepEqual(history.removeEntry(original, -1), original)
 assert.deepEqual(history.removeEntry(original, 99), original)
 
+const nativeEntries = [
+  { type: "text", text: "Olá\n mundo" },
+  { type: "text", text: "file:///home/user/Ol%C3%A1%20mundo.txt\r\nfile:///tmp/photo.png\r\n" },
+  { type: "image", path: "/state/clipboard-images/" + "a".repeat(64) + ".png", mime: "image/png" },
+  { type: "text", text: "keep" }
+]
+assert.deepEqual(history.removeNativeEntries(nativeEntries, [
+  { type: "text", text: "Olá\n mundo" }, files,
+  { type: "image", path: "/state/qick-paste-items/image", imageHash: "a".repeat(64) }
+]), [{ type: "text", text: "keep" }])
+assert.equal(history.nativeEntryMatches({ type: "text", text: "Olá" }, nativeEntries[0]), false)
+assert.equal(history.nativeEntryMatches({ type: "file", paths: ["/tmp/other"] }, nativeEntries[1]), false)
+
 assert.equal(history.matchesSearch({ type: "text", text: "Olá Mundo\nsegunda linha" }, "MUNDO"), true)
 assert.equal(history.matchesSearch({ type: "text", text: "Olá Mundo" }, "ausente"), false)
 assert.equal(history.matchesSearch(link, "CANONICAL"), true)

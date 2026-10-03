@@ -31,6 +31,7 @@ test:
 	bash tests/file-action.test.sh
 	bash tests/capture.test.sh
 	bash tests/edit-in-tensaku.test.sh
+	bash tests/remove-legacy-image.test.sh
 
 clean:
 	rm -rf -- $(build_dir)

@@ -64,6 +64,8 @@ function normalizeEntry(value) {
   if (formats.length) entry.formats = formats
   var bundleId = stringValue(value.bundleId)
   if (bundleId.length) entry.bundleId = bundleId
+  var imageHash = stringValue(value.imageHash)
+  if (entry.type === "image" && /^[a-f0-9]{64}$/.test(imageHash)) entry.imageHash = imageHash
 
   if (entry.type === "text" && value.linkPreview && typeof value.linkPreview === "object") {
     var description = stringValue(value.linkPreview.description)
@@ -127,6 +129,43 @@ function removeEntry(history, index) {
   if (!isFinite(position) || Math.floor(position) !== position
       || position < 0 || position >= values.length) return values.slice()
   return values.slice(0, position).concat(values.slice(position + 1))
+}
+
+function nativeEntryMatches(entry, nativeEntry) {
+  var item = normalizeEntry(entry)
+  if (!item || !nativeEntry || typeof nativeEntry !== "object") return false
+  if (item.type === "text")
+    return nativeEntry.type === "text" && nativeEntry.text === item.text
+  if (item.type === "image") {
+    if (nativeEntry.type !== "image") return false
+    if (nativeEntry.path === item.path) return true
+    var path = stringValue(nativeEntry.path)
+    return !!item.imageHash && path.indexOf("/clipboard-images/" + item.imageHash + ".") !== -1
+  }
+  if (item.type !== "file" || nativeEntry.type !== "text") return false
+  var lines = stringValue(nativeEntry.text).split(/\r?\n/)
+  var paths = []
+  for (var i = 0; i < lines.length; i++) {
+    if (!lines[i] || lines[i] === "copy" || lines[i] === "cut") continue
+    var path = lines[i]
+    if (path.indexOf("file://") === 0) {
+      path = path.substring(7)
+      if (path.indexOf("localhost/") === 0) path = path.substring(9)
+      try { path = decodeURIComponent(path) } catch (error) { return false }
+    }
+    if (path.charAt(0) !== "/") return false
+    paths.push(path)
+  }
+  return paths.length === item.paths.length && paths.every(function(path, i) {
+    return path === item.paths[i]
+  })
+}
+
+function removeNativeEntries(nativeHistory, entries) {
+  if (!Array.isArray(nativeHistory)) return []
+  return nativeHistory.filter(function(nativeEntry) {
+    return !entries.some(function(entry) { return nativeEntryMatches(entry, nativeEntry) })
+  })
 }
 
 function matchesSearch(value, query) {
@@ -204,6 +243,8 @@ if (typeof module !== "undefined") {
     parseHistory: parseHistory,
     addEntry: addEntry,
     removeEntry: removeEntry,
+    nativeEntryMatches: nativeEntryMatches,
+    removeNativeEntries: removeNativeEntries,
     matchesSearch: matchesSearch,
     importLegacy: importLegacy,
     webUrl: webUrl,
