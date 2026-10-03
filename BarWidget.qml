@@ -54,7 +54,7 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: "󰅌"
-    fontSize: Style.font.iconLarge
+    fontSize: Style.font.icon
     tooltipText: "Quick Paste"
     active: root.opened
     onPressed: function(mouseButton) {
