@@ -87,8 +87,11 @@ function normalizeEntry(value) {
 function entryKey(entry) {
   var value = normalizeEntry(entry)
   if (!value) return ""
-  if (value.bundleId) return "bundle:" + value.bundleId
-  if (value.type === "image") return "image:" + value.path
+  if (value.type === "image") {
+    if (value.imageHash) return "image:" + value.imageHash
+    var legacyHash = /\/clipboard-images\/([a-f0-9]{64})\.[^/]+$/.exec(value.path)
+    return "image:" + (legacyHash ? legacyHash[1] : value.path)
+  }
   if (value.type === "file") return "file:" + JSON.stringify(value.paths)
   return "text:" + value.text
 }
@@ -116,9 +119,15 @@ function addEntry(history, candidate, limit) {
   var key = entryKey(entry)
   var values = Array.isArray(history) ? history : []
   var result = [entry]
+  var seen = {}
+  seen[key] = true
   for (var i = 0; i < values.length && result.length < max; i++) {
     var existing = normalizeEntry(values[i])
-    if (existing && entryKey(existing) !== key) result.push(existing)
+    if (!existing) continue
+    var existingKey = entryKey(existing)
+    if (seen[existingKey]) continue
+    seen[existingKey] = true
+    result.push(existing)
   }
   return result
 }

@@ -23,14 +23,14 @@ assert.deepEqual(rich.formats, [
   { mime: "text/plain", path: "/state/plain" },
   { mime: "text/html", path: "/state/html" }
 ])
-assert.equal(history.entryKey(rich), "bundle:abc")
+assert.equal(history.entryKey(rich), "text:hello")
 
 const files = history.normalizeEntry({
   type: "file", paths: ["/home/user/Olá mundo.txt", "/tmp/photo.png"], bundleId: "files",
   formats: [{ mime: "text/uri-list", path: "/state/uri-list" }]
 })
 assert.deepEqual(files.paths, ["/home/user/Olá mundo.txt", "/tmp/photo.png"])
-assert.equal(history.entryKey(files), "bundle:files")
+assert.equal(history.entryKey(files), 'file:["/home/user/Olá mundo.txt","/tmp/photo.png"]')
 assert.equal(history.normalizeEntry({ type: "file", paths: [] }), null)
 assert.equal(history.normalizeEntry({ type: "file", paths: ["relative"] }), null)
 assert.equal(history.parseHistory(JSON.stringify([files]))[0].type, "file")
@@ -78,6 +78,30 @@ assert.equal(deduplicated[0].text, "same")
 assert.equal(deduplicated[0].capturedAt, 3)
 assert.equal(deduplicated[0].sourceName, "Code")
 
+const sameContent = history.addEntry([
+  { type: "text", text: "Olá  \n", bundleId: "rich", formats: rich.formats },
+  { type: "text", text: "other", bundleId: "first" },
+  { type: "text", text: "other", bundleId: "second" }
+], { type: "text", text: "Olá  \n", bundleId: "plain" }, 300)
+assert.deepEqual(sameContent.map(entry => entry.text), ["Olá  \n", "other"])
+assert.equal(sameContent[0].bundleId, "plain")
+assert.equal(history.entryKey({ type: "text", text: "Olá  \n" }),
+  history.entryKey({ type: "text", text: "Olá  \n", bundleId: "rich" }))
+assert.notEqual(history.entryKey({ type: "text", text: "Olá  \n" }),
+  history.entryKey({ type: "text", text: "Olá \n" }))
+
+const imageHash = "a".repeat(64)
+const sameImage = history.addEntry([
+  { type: "image", path: "/state/qick-paste-items/old", imageHash, bundleId: "png" }
+], { type: "image", path: "/state/qick-paste-items/new", imageHash, bundleId: "bmp" }, 300)
+assert.equal(sameImage.length, 1)
+assert.equal(sameImage[0].path, "/state/qick-paste-items/new")
+assert.equal(history.entryKey({ type: "image", path: "/state/clipboard-images/" + imageHash + ".png" }),
+  history.entryKey(sameImage[0]))
+assert.equal(history.addEntry([files], {
+  type: "file", paths: files.paths, bundleId: "different"
+}, 300).length, 1)
+
 const limited = history.addEntry(original, { type: "text", text: "new" }, 2)
 assert.deepEqual(limited.map(entry => entry.text), ["new", "older"])
 
@@ -119,6 +143,10 @@ assert.equal(imported.length, 2)
 assert.equal(imported[0].sourceName, "Terminal")
 assert.equal(imported[1].type, "image")
 assert.equal(imported[1].capturedAt, 0)
+assert.deepEqual(history.importLegacy([
+  { type: "text", text: "same", bundleId: "rich" },
+  { type: "text", text: "same", bundleId: "plain" }
+], [], 300).map(entry => entry.bundleId), ["rich"])
 
 assert.equal(history.characterCount("a😀b"), 3)
 assert.equal(history.relativeTime(0, 1000), "tempo desconhecido")

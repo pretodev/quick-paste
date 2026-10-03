@@ -97,7 +97,7 @@ Item {
     initialized = true
     history = ClipboardHistory.importLegacy(loadedHistory, legacyHistory, historyLimit)
     rebuildDisplay()
-    if (history.length !== loadedHistory.length) saveHistory()
+    if (JSON.stringify(history) !== JSON.stringify(loadedHistory)) saveHistory()
   }
 
   function saveHistory() {
@@ -506,8 +506,9 @@ Item {
       root.loadedHistory = ClipboardHistory.parseHistory(text())
       root.historyLoaded = true
       if (root.initialized) {
-        root.history = root.loadedHistory
+        root.history = ClipboardHistory.importLegacy(root.loadedHistory, [], root.historyLimit)
         root.rebuildDisplay()
+        if (root.history.length !== root.loadedHistory.length) root.saveHistory()
       } else root.maybeInitialize()
     }
     onLoadFailed: {
