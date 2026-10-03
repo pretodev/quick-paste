@@ -24,6 +24,7 @@ Item {
   property double clockNow: Date.now()
   property var pasteTarget: null
   property bool contextMenuOpen: false
+  property bool clearHistoryConfirmationOpen: false
   property int contextMenuIndex: -1
   property real contextMenuX: 0
   property real contextMenuY: 0
@@ -75,6 +76,7 @@ Item {
   }
 
   function close() {
+    clearHistoryConfirmationOpen = false
     closeContextMenu()
     opened = false
     selectedIndex = -1
@@ -199,9 +201,44 @@ Item {
     if (opened) Qt.callLater(function() { searchField.forceActiveFocus() })
   }
 
+  function showClearHistoryConfirmation() {
+    clearHistoryConfirmationOpen = true
+    Qt.callLater(function() {
+      if (clearHistoryConfirmationOpen) clearHistoryCancelButton.forceActiveFocus()
+    })
+  }
+
+  function dismissClearHistoryConfirmation(confirmed) {
+    clearHistoryConfirmationOpen = false
+    if (confirmed) clearHistory()
+    Qt.callLater(function() {
+      if (opened && !clearHistoryConfirmationOpen) searchField.forceActiveFocus()
+    })
+  }
+
+  function handleClearHistoryKey(event) {
+    if (event.key === Qt.Key_Escape) {
+      dismissClearHistoryConfirmation(false)
+    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+      dismissClearHistoryConfirmation(clearHistoryDeleteButton.activeFocus)
+    } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
+               || event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+      if (clearHistoryDeleteButton.activeFocus) clearHistoryCancelButton.forceActiveFocus()
+      else clearHistoryDeleteButton.forceActiveFocus()
+    }
+    event.accepted = true
+  }
+
   function handlePanelKey(event) {
+    if (clearHistoryConfirmationOpen) {
+      handleClearHistoryKey(event)
+      return
+    }
     if (event.key === Qt.Key_Escape) {
       close()
+      event.accepted = true
+    } else if (event.key === Qt.Key_Delete && event.modifiers === Qt.ShiftModifier) {
+      if (history.length) showClearHistoryConfirmation()
       event.accepted = true
     } else if ((event.key === Qt.Key_Menu && event.modifiers === Qt.NoModifier)
                || (event.key === Qt.Key_F10 && event.modifiers === Qt.ShiftModifier)) {
@@ -341,6 +378,14 @@ Item {
     if (displayModel.count <= 1) selectedIndex = -1
     else if (selectedIndex >= displayModel.count - 1) selectedIndex = displayModel.count - 2
     else if (selectedIndex > index) selectedIndex--
+    saveHistory()
+    rebuildDisplay()
+  }
+
+  function clearHistory() {
+    if (!history.length) return
+    history = []
+    selectedIndex = -1
     saveHistory()
     rebuildDisplay()
   }
@@ -1013,6 +1058,89 @@ Item {
                   onChosen: root.pastePlainText(root.contextMenuIndex)
                 }
               }
+            }
+          }
+        }
+      }
+    }
+
+    FocusScope {
+      anchors.fill: parent
+      visible: root.clearHistoryConfirmationOpen
+      z: 100
+      focus: visible
+      Keys.priority: Keys.BeforeItem
+      Keys.onPressed: function(event) { root.handleClearHistoryKey(event) }
+      Rectangle {
+        anchors.fill: parent
+        color: Color.menu.scrim
+        MouseArea { anchors.fill: parent; onClicked: root.dismissClearHistoryConfirmation(false) }
+      }
+      Rectangle {
+        width: Math.min(Style.space(360), sheet.width - Style.space(32))
+        height: Style.space(112)
+        x: sheet.x + (sheet.width - width) / 2
+        y: sheet.y + (sheet.height - height) / 2
+        radius: Style.cornerRadius
+        color: Color.menu.background
+        border.color: Color.menu.border
+        border.width: Math.max(1, Style.space(1))
+        MouseArea { anchors.fill: parent; onClicked: function(mouse) { mouse.accepted = true } }
+        Text {
+          x: Style.space(20); y: Style.space(18)
+          width: parent.width - Style.space(40)
+          text: root.tr("confirmClearHistory")
+          color: Color.menu.text
+          font.family: Style.font.menuFamily
+          font.pixelSize: Style.font.body
+        }
+        Row {
+          id: clearHistoryActions
+          anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+          anchors.leftMargin: Style.space(16); anchors.rightMargin: Style.space(16)
+          anchors.bottomMargin: Style.space(14)
+          spacing: Style.space(12)
+          Rectangle {
+            id: clearHistoryCancelButton
+            width: (clearHistoryActions.width - clearHistoryActions.spacing) / 2
+            height: Style.space(34)
+            focus: true
+            activeFocusOnTab: true
+            KeyNavigation.tab: clearHistoryDeleteButton
+            KeyNavigation.backtab: clearHistoryDeleteButton
+            color: "transparent"
+            border.width: activeFocus ? Math.max(2, Style.space(2)) : Math.max(1, Style.space(1))
+            border.color: activeFocus ? Color.accent : Color.menu.border
+            Text {
+              anchors.centerIn: parent; text: root.tr("cancel")
+              color: Color.menu.text
+              font.family: Style.font.menuFamily; font.pixelSize: Style.font.caption
+            }
+            MouseArea {
+              anchors.fill: parent
+              onPressed: clearHistoryCancelButton.forceActiveFocus()
+              onClicked: root.dismissClearHistoryConfirmation(false)
+            }
+          }
+          Rectangle {
+            id: clearHistoryDeleteButton
+            width: (clearHistoryActions.width - clearHistoryActions.spacing) / 2
+            height: Style.space(34)
+            activeFocusOnTab: true
+            KeyNavigation.tab: clearHistoryCancelButton
+            KeyNavigation.backtab: clearHistoryCancelButton
+            color: "transparent"
+            border.width: activeFocus ? Math.max(2, Style.space(2)) : Math.max(1, Style.space(1))
+            border.color: activeFocus ? Color.accent : Color.urgent
+            Text {
+              anchors.centerIn: parent; text: root.tr("deleteAll")
+              color: Color.urgent
+              font.family: Style.font.menuFamily; font.pixelSize: Style.font.caption
+            }
+            MouseArea {
+              anchors.fill: parent
+              onPressed: clearHistoryDeleteButton.forceActiveFocus()
+              onClicked: root.dismissClearHistoryConfirmation(true)
             }
           }
         }
