@@ -466,7 +466,7 @@ Item {
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; right: true; bottom: true; left: true }
 
-    WlrLayershell.namespace: "qick-paste"
+    WlrLayershell.namespace: "quick-paste"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 

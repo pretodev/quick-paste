@@ -4,7 +4,7 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "qick-paste"
+  moduleName: "quick-paste"
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
 
@@ -55,7 +55,7 @@ BarWidget {
     bar: root.bar
     text: "󰅌"
     fontSize: Style.font.iconLarge
-    tooltipText: "Qick Paste"
+    tooltipText: "Quick Paste"
     active: root.opened
     onPressed: function(mouseButton) {
       if (mouseButton === Qt.LeftButton) root.toggle()

@@ -1,61 +1,61 @@
-# Qick Paste
+# Quick Paste
 
-A visual clipboard history for the Omarchy 4.x bar, inspired by macOS Paste.
-It opens as a full-width bottom panel with horizontally scrollable cards for
-text, images, and files.
+Quick Paste is a visual clipboard history plugin for the Omarchy 4.x bar. It
+opens a bottom panel with horizontally scrollable cards for text, images, and
+files. The interface follows the system locale in Portuguese, English, and
+Spanish; other locales use English.
 
-Copied HTTP(S) links get an Open Graph preview when the destination provides
-`og:description`, `og:image`, or `og:url`. Preview retrieval is best effort,
-with short timeouts and a one-megabyte response limit; the original URL remains
-the clipboard item and is always what gets pasted.
+Copied HTTP(S) links can show an Open Graph preview when the destination
+provides one. Preview retrieval is best effort, uses short timeouts, and is
+limited to one megabyte. The original URL remains the clipboard item and is
+always what gets pasted.
 
-Each new item records its source application, relative age, and its
-Unicode character count, image dimensions, or file count. Existing Omarchy clipboard
-history is imported on first run; metadata unavailable in those older entries
-is shown as unknown.
+Each new item records its source application and a relative age, plus its
+Unicode character count, image dimensions, or file count. Existing Omarchy
+clipboard history is imported on first run. Metadata unavailable in older
+entries is shown as unknown. Source application detection is best effort
+because Wayland does not expose clipboard ownership metadata.
 
-The interface follows the system locale in Portuguese, English, and Spanish.
-Other locales use English. Clipboard content and saved history are never translated.
+## Install
+
+Install Quick Paste from its Git repository with Omarchy's plugin manager:
+
+```bash
+omarchy plugin add https://github.com/pretodev/quick-paste.git --enable
+make -C ~/.config/omarchy/plugins/quick-paste
+install -m 0755 ~/.config/omarchy/plugins/quick-paste/build/qick-paste-clipboard-provider \
+  ~/.config/omarchy/plugins/quick-paste/qick-paste-clipboard-provider
+omarchy bar move quick-paste --section right --before omarchy.power
+```
+
+The first command installs and enables the plugin. The next two build and
+install its multi-format Wayland clipboard provider, which the plugin uses to
+preserve clipboard MIME types. The final command places the widget in the
+right section before the power widget. Building requires `make`, `gcc`,
+`pkg-config`, `wayland-scanner`, Wayland client headers, and the wlr-data-control
+protocol. To update the plugin later, run:
+
+```bash
+omarchy plugin update quick-paste
+make -C ~/.config/omarchy/plugins/quick-paste
+install -m 0755 ~/.config/omarchy/plugins/quick-paste/build/qick-paste-clipboard-provider \
+  ~/.config/omarchy/plugins/quick-paste/qick-paste-clipboard-provider
+```
+
+To remove the plugin, run:
+
+```bash
+omarchy plugin remove quick-paste
+```
 
 ## Requirements
 
 - Omarchy 4.x with the Quickshell-based shell
-- `wl-clipboard`, `wtype`, `jq`, `perl`, `python`, `curl`, and `setpriv` (included by Omarchy)
+- Runtime commands: `wl-clipboard`, `wtype`, `jq`, `perl`, `python`, `curl`,
+  and `setpriv`
 - `tensaku` for image editing
-- Build tools used by the installer: `make`, `gcc`, `pkg-config`,
+- Build tools for the clipboard provider: `make`, `gcc`, `pkg-config`,
   `wayland-scanner`, Wayland client headers, and the wlr-data-control protocol
-
-## Validate
-
-```bash
-make validate
-```
-
-## Try it locally
-
-Copy the checkout into the user plugin directory, rescan it, then place the
-button in the right bar section before the power widget:
-
-```bash
-mkdir -p ~/.config/omarchy/plugins/qick-paste
-make
-cp -a BarWidget.qml QuickPaste.qml ClipboardHistory.js I18n.js capture.sh edit-in-tensaku.sh file-action.sh file-uris.py link-preview.py paste.sh manifest.json \
-  ~/.config/omarchy/plugins/qick-paste/
-cp -a build/qick-paste-clipboard-provider ~/.config/omarchy/plugins/qick-paste/
-omarchy-shell shell rescanPlugins
-omarchy plugin enable qick-paste --section right --before omarchy.power
-```
-
-Files under `~/.config/omarchy/plugins/` hot-reload. To remove the development
-copy later, run `omarchy plugin remove qick-paste`.
-
-Once this repository has a Git remote, install it through the regular plugin
-flow, then position it explicitly:
-
-```bash
-omarchy plugin add https://github.com/OWNER/qick-paste.git --enable
-omarchy bar move qick-paste --section right --before omarchy.power
-```
 
 ## Usage
 
@@ -68,8 +68,9 @@ omarchy bar move qick-paste --section right --before omarchy.power
   Shift+Enter to paste only `text/plain`, and Escape to close.
 - Use Ctrl+Enter to open a selected HTTP(S) link in the default browser. The
   same action appears first in the card's context menu.
-- Right-click an image and choose **Open in Tensaku** (or its translation). Saving the edit creates
-  a new history item and leaves the original image untouched.
+- Right-click an image and choose **Open in Tensaku** (or its translation).
+  Saving the edit creates a new history item and leaves the original image
+  untouched.
 - Copied files and folders appear together in one card. Click twice or press
   Enter to paste the original file selection. The context menu can open the
   files, reveal them in Files, or paste absolute paths or `~/` paths. Path
@@ -79,6 +80,15 @@ omarchy bar move qick-paste --section right --before omarchy.power
 - Scroll vertically or horizontally over the row to move through the history.
 
 The plugin stores its enriched history at
-`~/.local/state/omarchy/qick-paste-history.json` by default and captured clipboard formats under
-`~/.local/state/omarchy/qick-paste-items/`. Source-application detection is
-best effort because Wayland does not expose clipboard ownership metadata.
+`~/.local/state/omarchy/qick-paste-history.json` by default and captured
+clipboard formats under `~/.local/state/omarchy/qick-paste-items/`. Clipboard
+content and saved history are never translated.
+
+## Development
+
+Validate the manifest, build the clipboard provider, and run the project checks
+with:
+
+```bash
+make validate
+```

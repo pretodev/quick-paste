@@ -1,8 +1,8 @@
-# Qick Paste: instruções para agentes
+# Quick Paste: instruções para agentes
 
 ## Sobre o projeto
 
-Qick Paste é um plugin de histórico visual da área de transferência para a barra do Omarchy 4.x. Ele é executado dentro do `omarchy-shell` (Quickshell), abre um painel inferior com itens de texto e imagem e permite recolocar e colar um item selecionado.
+Quick Paste é um plugin de histórico visual da área de transferência para a barra do Omarchy 4.x. Ele é executado dentro do `omarchy-shell` (Quickshell), abre um painel inferior com itens de texto, imagem e arquivos e permite recolocar e colar um item selecionado.
 
 Componentes principais:
 
@@ -51,4 +51,4 @@ Isso roda os testes JavaScript e a validação oficial do manifest/plugin. Para 
 
 ## Instalação e atualização
 
-Use o skill local [`skills/install-qick-paste/SKILL.md`](skills/install-qick-paste/SKILL.md). Ele oferece um fluxo reproduzível para qualquer ferramenta de agente capaz de ler arquivos e executar comandos, e evita alterar diretamente arquivos internos do Omarchy.
+Instale o plugin publicado com `omarchy plugin add https://github.com/pretodev/quick-paste.git --enable` e posicione-o com `omarchy bar move quick-paste --section right --before omarchy.power`. Para mudanças no fluxo de instalação local, mantenha o skill em `.codex/skills/install-qick-paste/` sincronizado com o ID `quick-paste`.
