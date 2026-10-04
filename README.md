@@ -112,3 +112,7 @@ with:
 ```bash
 make validate
 ```
+
+## License
+
+Quick Paste is available under the [MIT License](LICENSE).
