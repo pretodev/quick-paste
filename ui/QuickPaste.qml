@@ -27,6 +27,7 @@ Item {
   property var pasteTarget: null
   property bool contextMenuOpen: false
   property bool dragInProgress: false
+  property bool displayRefreshPending: false
   property bool clearHistoryConfirmationOpen: false
   property int contextMenuIndex: -1
   property real contextMenuX: 0
@@ -63,6 +64,7 @@ Item {
   }
 
   function open(payloadJson) {
+    if (dragInProgress) return
     pasteTarget = ToplevelManager.activeToplevel
     searchField.text = ""
     selectedIndex = -1
@@ -73,7 +75,7 @@ Item {
   }
 
   function resetInitialPosition() {
-    if (!opened) return
+    if (!opened || dragInProgress) return
     resultList.cancelFlick()
     resultList.forceLayout()
     resultList.positionViewAtBeginning()
@@ -81,6 +83,8 @@ Item {
   }
 
   function close() {
+    // QDrag runs a nested event loop; keep its source window alive until it returns.
+    if (dragInProgress) return
     clearHistoryConfirmationOpen = false
     closeContextMenu()
     opened = false
@@ -139,6 +143,12 @@ Item {
   }
 
   function rebuildDisplay() {
+    // Clearing the model destroys the delegate that owns an active QDrag.
+    if (dragInProgress) {
+      displayRefreshPending = true
+      return
+    }
+    displayRefreshPending = false
     displayModel.clear()
     for (var i = 0; i < history.length; i++) {
       var entry = ClipboardHistory.normalizeEntry(history[i])
@@ -254,6 +264,7 @@ Item {
   }
 
   function handlePanelKey(event) {
+    if (dragInProgress) return
     if (clearHistoryConfirmationOpen) {
       handleClearHistoryKey(event)
       return
@@ -741,8 +752,9 @@ Item {
               Drag.onDragStarted: root.dragInProgress = true
               Drag.onDragFinished: {
                 Qt.callLater(function() {
-                  root.close()
                   root.dragInProgress = false
+                  root.close()
+                  if (root.displayRefreshPending) root.rebuildDisplay()
                 })
               }
 
