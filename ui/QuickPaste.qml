@@ -15,6 +15,7 @@ Item {
   property var hostWidget: null
   property bool opened: false
   property int selectedIndex: -1
+  property int mouseSelectedIndex: -1
   property var history: []
   property var loadedHistory: []
   property var legacyHistory: []
@@ -149,6 +150,7 @@ Item {
       return
     }
     displayRefreshPending = false
+    mouseSelectedIndex = -1
     displayModel.clear()
     for (var i = 0; i < history.length; i++) {
       var entry = ClipboardHistory.normalizeEntry(history[i])
@@ -204,6 +206,7 @@ Item {
 
   function selectIndex(index) {
     if (index < 0 || index >= displayModel.count) return
+    mouseSelectedIndex = -1
     selectedIndex = index
     resultList.positionViewAtIndex(index, ListView.Contain)
   }
@@ -787,13 +790,22 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onWheel: function(event) { root.scrollHistory(event) }
-                onClicked: function(mouse) {
-                  if (mouse.button === Qt.RightButton) {
-                    root.openContextMenu(card, card.index, mouse.x, mouse.y)
-                  } else if (root.selectedIndex === card.index) {
+              }
+
+              TapHandler {
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                cursorShape: Qt.PointingHandCursor
+                onTapped: function(point, button) {
+                  var deletePoint = deleteButton.mapFromItem(card, point.position.x, point.position.y)
+                  if (button === Qt.LeftButton && deleteButton.contains(deletePoint)) return
+                  if (button === Qt.RightButton) {
+                    root.openContextMenu(card, card.index, point.position.x, point.position.y)
+                  } else if (root.selectedIndex === card.index
+                             && root.mouseSelectedIndex === card.index) {
                     root.activateIndex(card.index)
                   } else {
                     root.selectIndex(card.index)
+                    root.mouseSelectedIndex = card.index
                   }
                 }
               }
