@@ -5,6 +5,12 @@ opens a bottom panel with horizontally scrollable cards for text, images, and
 files. The interface follows the system locale in Portuguese, English, and
 Spanish; other locales use English.
 
+![Quick Paste running in the Omarchy shell with text, link, image, and file cards](assets/quick-paste-omarchy.png)
+
+Open the panel from the bar, search your recent clipboard items, and click or
+press Enter to paste. Cards can also be dragged into other apps. Each card
+shows its source app, age, and content details when available.
+
 Copied HTTP(S) links can show an Open Graph preview when the destination
 provides one. Preview retrieval is best effort, uses short timeouts, and is
 limited to one megabyte. The original URL remains the clipboard item and is
@@ -68,6 +74,9 @@ omarchy plugin remove quick-paste
   image file. The panel closes after the drag, including when you cancel it.
 - Use Left/Right to select, Enter to paste with every original MIME type,
   Shift+Enter to paste only `text/plain`, and Escape to close.
+- Press Delete to remove the selected card, or Shift+Delete to open the
+  confirmation dialog for clearing the entire history. Open the selected
+  card's context menu with the Menu key or Shift+F10.
 - Use Ctrl+Enter to open a selected HTTP(S) link in the default browser. The
   same action appears first in the card's context menu.
 - Right-click an image and choose **Open in Tensaku** (or its translation).
