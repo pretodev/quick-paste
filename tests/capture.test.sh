@@ -113,4 +113,26 @@ printf 'file:///tmp/one\r\nfile:///tmp/two\r\n' >"$test_root/uris.txt"
 printf 'https://example.com\n' >"$test_root/uris.txt"
 [[ $(python3 "$(dirname "$0")/../scripts/file-uris.py" "$test_root/uris.txt" text/uri-list) == '[]' ]]
 
+cat >"$test_root/bin/wl-paste" <<'EOF'
+#!/bin/bash
+if [[ $1 == "--list-types" ]]; then printf '%s\n' 'text/plain;charset=utf-8'; exit 0; fi
+[[ $2 == 'text/plain;charset=utf-8' ]] || exit 1
+printf '%s' $'private-clipboard-marker\nUnicode: Olá "mundo"'
+EOF
+chmod +x "$test_root/bin/wl-paste"
+
+real_jq=$(command -v jq)
+cat >"$test_root/bin/jq" <<'EOF'
+#!/bin/bash
+for arg in "$@"; do
+  [[ $arg != *private-clipboard-marker* ]] || exit 99
+done
+exec "$QICK_PASTE_REAL_JQ" "$@"
+EOF
+chmod +x "$test_root/bin/jq"
+
+private_entry=$(env XDG_STATE_HOME="$test_root/state" PATH="$test_root/bin:$PATH" \
+  QICK_PASTE_REAL_JQ="$real_jq" "$(dirname "$0")/../scripts/capture.sh")
+[[ $("$real_jq" -r '.text' <<<"$private_entry") == $'private-clipboard-marker\nUnicode: Olá "mundo"' ]]
+
 echo "capture helper tests passed"
