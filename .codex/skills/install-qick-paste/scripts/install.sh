@@ -23,7 +23,7 @@ runtime_files=(
   ui/QuickPaste.qml ui/ClipboardHistory.js ui/I18n.js
   scripts/capture.sh scripts/edit-in-tensaku.sh scripts/file-action.sh
   scripts/file-uris.py scripts/link-preview.py scripts/paste.sh
-  scripts/remove-legacy-image.py
+  scripts/prepare-drag-source.py scripts/remove-legacy-image.py
 )
 required_commands=(omarchy omarchy-shell jq wl-copy wl-paste wtype perl python3 curl setpriv node make gcc pkg-config wayland-scanner tensaku)
 

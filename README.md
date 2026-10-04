@@ -51,7 +51,7 @@ omarchy plugin remove quick-paste
 ## Requirements
 
 - Omarchy 4.x with the Quickshell-based shell
-- Runtime commands: `wl-clipboard`, `wtype`, `jq`, `perl`, `python`, `curl`,
+- Runtime commands: `wl-clipboard`, `wtype`, `jq`, `perl`, `python3`, `curl`,
   and `setpriv`
 - `tensaku` for image editing
 - Build tools for the clipboard provider: `make`, `gcc`, `pkg-config`,
@@ -64,6 +64,8 @@ omarchy plugin remove quick-paste
   Results update as you type, and Enter pastes the first match. Escape closes
   the panel and clears the search for the next opening.
 - Click a card once to select it; click it again to paste and close.
+- Drag a card to another app to drop its text, copied files or folders, or an
+  image file. The panel closes after the drag, including when you cancel it.
 - Use Left/Right to select, Enter to paste with every original MIME type,
   Shift+Enter to paste only `text/plain`, and Escape to close.
 - Use Ctrl+Enter to open a selected HTTP(S) link in the default browser. The
@@ -81,7 +83,9 @@ omarchy plugin remove quick-paste
 
 The plugin stores its enriched history at
 `~/.local/state/omarchy/qick-paste-history.json` by default and captured
-clipboard formats under `~/.local/state/omarchy/qick-paste-items/`. Clipboard
+clipboard formats under `~/.local/state/omarchy/qick-paste-items/`. Images
+without a filename extension receive a file for dragging under
+`~/.local/state/omarchy/qick-paste-drag-images/`. Clipboard
 content and saved history are never translated.
 
 ## Development

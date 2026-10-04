@@ -26,6 +26,7 @@ Item {
   property double clockNow: Date.now()
   property var pasteTarget: null
   property bool contextMenuOpen: false
+  property bool dragInProgress: false
   property bool clearHistoryConfirmationOpen: false
   property int contextMenuIndex: -1
   property real contextMenuX: 0
@@ -40,6 +41,7 @@ Item {
   readonly property string fileActionScript: localPath("../scripts/file-action.sh")
   readonly property string editScript: localPath("../scripts/edit-in-tensaku.sh")
   readonly property string removeLegacyImageScript: localPath("../scripts/remove-legacy-image.py")
+  readonly property string prepareDragSourceScript: localPath("../scripts/prepare-drag-source.py")
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property string pasteTargetName: appName(pasteTarget)
   readonly property string localeName: Qt.locale().name
@@ -85,6 +87,23 @@ Item {
     selectedIndex = -1
     if (bar && bar.activePopout === (hostWidget || root) && typeof bar.releasePopout === "function")
       bar.releasePopout(hostWidget || root)
+  }
+
+  function dragMimeData(historyIndex, imagePath) {
+    var entry = history[historyIndex]
+    if (!entry) return ({})
+    if (entry.type === "text") return ({ "text/plain": entry.text })
+    var paths = entry.type === "image" ? (imagePath ? [imagePath] : []) : entry.paths
+    if (!paths || !paths.length) return ({})
+    return ({ "text/uri-list": paths.map(Util.fileUrl).join("\r\n") + "\r\n" })
+  }
+
+  function dragPrepareCommand(historyIndex) {
+    var entry = history[historyIndex]
+    if (!entry || entry.type === "text") return []
+    if (entry.type === "image")
+      return ["python3", prepareDragSourceScript, entry.path, entry.mime]
+    return ["python3", prepareDragSourceScript, "--files", JSON.stringify(entry.paths)]
   }
 
   function toggle(payloadJson) {
@@ -201,7 +220,9 @@ Item {
   function closeContextMenu() {
     contextMenuOpen = false
     contextMenuIndex = -1
-    if (opened) Qt.callLater(function() { searchField.forceActiveFocus() })
+    if (opened) Qt.callLater(function() {
+      if (opened) searchField.forceActiveFocus()
+    })
   }
 
   function showClearHistoryConfirmation() {
@@ -555,14 +576,20 @@ Item {
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; right: true; bottom: true; left: true }
+    mask: Region {
+      width: root.dragInProgress ? 0 : panel.width
+      height: root.dragInProgress ? 0 : panel.height
+    }
 
     WlrLayershell.namespace: "quick-paste"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: root.opened && !root.dragInProgress
+      ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     Rectangle {
       anchors.fill: parent
       color: Color.menu.scrim
+      opacity: root.dragInProgress ? 0 : 1
     }
 
     MouseArea {
@@ -572,6 +599,7 @@ Item {
 
     BorderSurface {
       id: sheet
+      opacity: root.dragInProgress ? 0 : 1
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.bottom: parent.bottom
@@ -698,6 +726,39 @@ Item {
               required property int characterCount
               required property int historyIndex
 
+              property string dragImagePath: ""
+              property bool fileDragReady: false
+              readonly property bool dragReady: entryType === "text"
+                || (entryType === "image" ? !!dragImagePath : fileDragReady)
+
+              Drag.dragType: Drag.Automatic
+              Drag.supportedActions: Qt.CopyAction
+              Drag.proposedAction: Qt.CopyAction
+              Drag.mimeData: root.dragMimeData(historyIndex, dragImagePath)
+              Drag.imageSource: entryType === "image" ? previewImage : ""
+              Drag.imageSourceSize: Qt.size(96, 96)
+              Drag.active: dragHandler.active && dragReady
+              Drag.onDragStarted: root.dragInProgress = true
+              Drag.onDragFinished: {
+                Qt.callLater(function() {
+                  root.close()
+                  root.dragInProgress = false
+                })
+              }
+
+              Process {
+                command: root.dragPrepareCommand(card.historyIndex)
+                running: card.entryType !== "text"
+                stdout: StdioCollector {
+                  waitForEnd: true
+                  onStreamFinished: {
+                    var value = text.endsWith("\n") ? text.slice(0, -1) : text
+                    if (card.entryType === "image") card.dragImagePath = value
+                    else card.fileDragReady = value === "1"
+                  }
+                }
+              }
+
               readonly property bool selected: root.selectedIndex === index
               readonly property real cardBorderWidth: Math.max(1, Style.space(2))
               width: Math.min(Style.space(292), resultList.width * 0.78)
@@ -791,6 +852,12 @@ Item {
                   width: parent.width
                   height: parent.height - y - footer.height - parent.spacing
                   clip: true
+
+                  DragHandler {
+                    id: dragHandler
+                    target: null
+                    enabled: card.dragReady && !root.contextMenuOpen
+                  }
 
                   Text {
                     visible: card.entryType === "text" && !card.isLink
