@@ -29,6 +29,8 @@ Item {
   property bool contextMenuOpen: false
   property bool dragInProgress: false
   property bool displayRefreshPending: false
+  property bool displayDirty: true
+  property bool resettingSearch: false
   property bool clearHistoryConfirmationOpen: false
   property int contextMenuIndex: -1
   property real contextMenuX: 0
@@ -67,10 +69,15 @@ Item {
   function open(payloadJson) {
     if (dragInProgress) return
     pasteTarget = ToplevelManager.activeToplevel
-    searchField.text = ""
+    if (searchField.text.length) {
+      resettingSearch = true
+      searchField.text = ""
+      resettingSearch = false
+      displayDirty = true
+    }
     selectedIndex = -1
-    rebuildDisplay()
     opened = true
+    if (displayDirty) rebuildDisplay()
     if (bar && typeof bar.requestPopout === "function") bar.requestPopout(hostWidget || root)
     initialPositionReset.restart()
   }
@@ -120,7 +127,8 @@ Item {
     if (initialized || !historyLoaded || !legacyLoaded) return
     initialized = true
     history = ClipboardHistory.importLegacy(loadedHistory, legacyHistory, historyLimit)
-    rebuildDisplay()
+    displayDirty = true
+    if (opened) rebuildDisplay()
     if (JSON.stringify(history) !== JSON.stringify(loadedHistory)) saveHistory()
   }
 
@@ -139,6 +147,7 @@ Item {
       entry.sourceIcon = entry.sourceAppId
       history = ClipboardHistory.addEntry(history, entry, historyLimit)
       saveHistory()
+      displayDirty = true
       if (opened) rebuildDisplay()
     } catch (error) {}
   }
@@ -150,6 +159,7 @@ Item {
       return
     }
     displayRefreshPending = false
+    displayDirty = false
     mouseSelectedIndex = -1
     displayModel.clear()
     for (var i = 0; i < history.length; i++) {
@@ -477,7 +487,6 @@ Item {
 
   ListModel {
     id: displayModel
-    dynamicRoles: true
   }
 
   Process {
@@ -542,7 +551,8 @@ Item {
       root.historyLoaded = true
       if (root.initialized) {
         root.history = ClipboardHistory.importLegacy(root.loadedHistory, [], root.historyLimit)
-        root.rebuildDisplay()
+        root.displayDirty = true
+        if (root.opened) root.rebuildDisplay()
         if (root.history.length !== root.loadedHistory.length) root.saveHistory()
       } else root.maybeInitialize()
     }
@@ -693,7 +703,7 @@ Item {
             placeholderText: root.tr("search")
             foreground: Color.menu.text
             accent: Color.accent
-            onTextChanged: root.updateSearch()
+            onTextChanged: if (!root.resettingSearch) root.updateSearch()
             Keys.priority: Keys.BeforeItem
             Keys.onPressed: function(event) { root.handlePanelKey(event) }
           }
@@ -762,8 +772,8 @@ Item {
               }
 
               Process {
+                id: dragPreparation
                 command: root.dragPrepareCommand(card.historyIndex)
-                running: card.entryType !== "text"
                 stdout: StdioCollector {
                   waitForEnd: true
                   onStreamFinished: {
@@ -776,7 +786,9 @@ Item {
 
               readonly property bool selected: root.selectedIndex === index
               readonly property real cardBorderWidth: Math.max(1, Style.space(2))
-              width: Math.min(Style.space(292), resultList.width * 0.78)
+              width: resultList.width > 0
+                ? Math.min(Style.space(292), resultList.width * 0.78)
+                : Style.space(292)
               height: resultList.height
               radius: Style.cornerRadius
               color: selected ? Color.menu.selectedBackground : Util.alpha(Color.menu.text, 0.035)
@@ -880,7 +892,13 @@ Item {
                   DragHandler {
                     id: dragHandler
                     target: null
-                    enabled: card.dragReady && !root.contextMenuOpen
+                    enabled: !root.contextMenuOpen
+                    onActiveChanged: {
+                      if (!active || card.entryType === "text") return
+                      card.dragImagePath = ""
+                      card.fileDragReady = false
+                      dragPreparation.running = true
+                    }
                   }
 
                   Text {

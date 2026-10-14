@@ -7,6 +7,7 @@ BarWidget {
   moduleName: "quick-paste"
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+  property bool pendingOpen: false
 
   function injectPanel() {
     var target = panelLoader.item
@@ -18,14 +19,16 @@ BarWidget {
 
   function open() {
     if (panelLoader.item) panelLoader.item.open("{}")
+    else pendingOpen = true
   }
 
   function close() {
+    pendingOpen = false
     if (panelLoader.item) panelLoader.item.close()
   }
 
   function toggle() {
-    if (root.opened) root.close()
+    if (root.opened || pendingOpen) root.close()
     else root.open()
   }
 
@@ -41,11 +44,16 @@ BarWidget {
   Loader {
     id: panelLoader
     active: true
+    asynchronous: true
     source: Qt.resolvedUrl("ui/QuickPaste.qml")
     visible: false
     onLoaded: {
       root.injectPanel()
       Qt.callLater(root.injectPanel)
+      if (root.pendingOpen) {
+        root.pendingOpen = false
+        item.open("{}")
+      }
     }
   }
 
